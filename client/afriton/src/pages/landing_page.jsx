@@ -3,20 +3,22 @@ import AOS from 'aos';
 import 'aos/dist/aos.css';
 import { Login } from './Login';
 import { Register } from './Register';
-import { Footer } from './Footer';
-import UserFeedback from './UserFeedBack';
-import Services from './services';
-import Features from './Futures';
-import { NavBar } from './NavBar';
-import { HelloPage } from './HelloPage';
-import { ContactUs } from './ContactUs';
-import { AboutUs } from './AboutUs';
+import { Footer } from '../comps/Footer';
+import UserFeedback from '../comps/UserFeedBack';
+import Services from '../comps/services';
+import Features from '../comps/Futures';
+import { NavBar } from '../comps/NavBar';
+import { HelloPage } from '../comps/HelloPage';
+import { ContactUs } from '../comps/ContactUs';
+import { AboutUs } from '../comps/AboutUs';
+import { FaArrowAltCircleRight, FaCreativeCommonsSamplingPlus, FaTimesCircle, FaWindowMaximize } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
 
 const LandingPage = () => {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-
+    const navigate = useNavigate();
   useEffect(() => {
     AOS.init({ duration: 800 });
   }, []);
@@ -30,16 +32,24 @@ const LandingPage = () => {
         onClick={(e) => e.target === e.currentTarget && onClose()}
       >
         <div
-          className="bg-white rounded-lg p-6 max-w-md w-full transform transition-all"
+          className=" rounded-lg p-6  w-full transform transition-all"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold">{title}</h2>
+            {/* <h2 className="text-xl font-bold">{title}</h2> */}
             <button
+            title='Close Form'
               onClick={onClose}
-              className="text-gray-500 hover:text-gray-700 text-3xl font-bold"
+              className="text-gray-300 top-11 right-11 absolute hover:text-gray-200 text-3xl font-bold"
             >
-              ×
+              <FaTimesCircle/>
+            </button>
+            <button
+            title='Open In Form'
+              onClick={()=>navigate(title)}
+              className="text-slate-200 top-40 left-11 absolute hover:text-slate-200 text-3xl font-bold"
+            >
+              <FaArrowAltCircleRight/>
             </button>
           </div>
           {children}
@@ -87,11 +97,11 @@ const LandingPage = () => {
       <Footer />
 
       {/* Modals */}
-      <Modal isOpen={isLoginOpen} onClose={() => setIsLoginOpen(false)} title="Login">
+      <Modal isOpen={isLoginOpen} onClose={() => setIsLoginOpen(false)} title="/login">
         <Login />
       </Modal>
 
-      <Modal isOpen={isRegisterOpen} onClose={() => setIsRegisterOpen(false)} title="Register">
+      <Modal isOpen={isRegisterOpen} onClose={() => setIsRegisterOpen(false)} title="/register">
         <Register />
       </Modal>
     </div>

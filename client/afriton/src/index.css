@@ -1,61 +1,25 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-/* Slide In from Left */
-.slide-in-left {
-    opacity: 1;
-    transform: translateX(0);
-}
+/* Loading.css */
 
-/* Slide In from Right */
-.slide-in-right {
-    opacity: 1;
-    transform: translateX(0);
-}
-
-/* Slide In from Up */
-.slide-in-up {
-    opacity: 1;
-    transform: translateY(0);
-}
-
-/* Slide In from Down */
-.slide-in-down {
-    opacity: 1;
-    transform: translateY(0);
-}
-
-/* Initial State */
-.opacity-0 { opacity: 0; }
-.translate-x-negative-full { transform: translateX(-100%); }
-.translate-x-full { transform: translateX(100%); }
-.translate-y-full { transform: translateY(100%); }
-.translate-y-negative-full { transform: translateY(-100%); }
-.zoom-in {
-    opacity: 1;
-    transform: scale(1);
-}
-.rotate-in {
-    opacity: 1;
-    transform: rotate(0deg);
-}
-.bounce-in {
-    opacity: 1;
-    transform: translateY(0);
-    animation: bounce-in 0.5s ease-out;
-}
-
-@keyframes bounce-in {
-    0% { transform: translateY(50px); }
-    50% { transform: translateY(-10px); }
-    100% { transform: translateY(0); }
-}
-
-/* Initial State */
-.rotate-negative-10 { transform: rotate(-10deg); }
-
-.zoom-out {
-    opacity: 1;
-    transform: scale(1);
-}
-
+/* Animation for each letter */
+.letter-animation {
+    display: inline-block;
+    opacity: 0;
+    transform: translateY(10px);
+    animation: fadeInUp 0.5s forwards;
+  }
+  
+  /* Define the animation for each letter */
+  @keyframes fadeInUp {
+    0% {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
