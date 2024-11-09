@@ -58,7 +58,7 @@ const Sidebar = ({ isOpen, toggleSidebar, userType, activePath, setActivePath })
   const menuItems = MENU_ITEMS[userType];
 
   return (
-        <div className={`fixed left-0 top-0 h-full bg-[#0b643b] text-white transition-all duration-300 z-20 
+        <div className={`fixed left-0 top-0 h-full bg-[#f3f8ff] text-gray-600 transition-all duration-300 z-20 
       ${isOpen ? 'w-64' : 'w-20'} lg:relative`}>
       <div className="flex items-center justify-between p-4 border-b border-gray-800">
         <h1 className={`font-bold ${isOpen ? 'block' : 'hidden'}`}>Afriton</h1>
@@ -72,7 +72,7 @@ const Sidebar = ({ isOpen, toggleSidebar, userType, activePath, setActivePath })
             key={item.path}
             onClick={() => setActivePath(item.path)}
             className={`flex items-center w-full p-3 rounded mb-2 transition-colors
-              ${activePath === item.path ? 'bg-emerald-700' : 'hover:bg-green-800'}`}
+              ${activePath === item.path ? 'bg-blue-400 text-white' : 'hover:bg-blue-500 hover:text-white'}`}
           >
             <item.icon className={`text-xl ${isOpen ? 'mr-3' : 'mx-auto'}`} />
             <span className={isOpen ? 'block' : 'hidden'}>{item.label}</span>
@@ -133,7 +133,7 @@ const StatsCard = ({ icon: Icon, title, value, change }) => (
         <p className="text-gray-600 text-sm">{title}</p>
         <h3 className="text-2xl font-bold mt-2">{value}</h3>
         {change && (
-          <p className={`text-sm mt-2 ${change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+          <p className={`text-sm mt-2 ${change >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
             {change >= 0 ? '↑' : '↓'} {Math.abs(change)}%
           </p>
         )}
