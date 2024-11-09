@@ -13,7 +13,7 @@ export const NavBar = ({ setIsMenuOpen, setIsLoginOpen, setIsRegisterOpen, isMen
     }, []);
 
     return (
-        <nav className={`fixed w-full z-40 ${isScrolled ? 'md:bg-white shadow-md bg-black text-white' : 'md:bg-[#0000002d] bg-black text-white'} transition-colors duration-300`}>
+        <nav className={`fixed w-full z-40 ${isScrolled ? 'md:bg-white shadow-md bg-black max-md:text-white' : 'md:bg-[#0000002d] bg-black text-white'} transition-colors duration-300`}>
             <div className="max-w-7xl mx-auto px-4">
                 <div className="flex items-center justify-between h-16">
                     <div className="text-2xl font-bold text-yellow-600">Afriton</div>
