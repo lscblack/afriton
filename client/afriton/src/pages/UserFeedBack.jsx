@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Splide, SplideSlide } from '@splidejs/react-splide';
 import '@splidejs/react-splide/css';
 import { FaStar, FaQuoteLeft } from 'react-icons/fa';
-
+import AOS from 'aos';
+import 'aos/dist/aos.css';
 const testimonials = [
   {
     name: "Igiraneza Sheilla",
@@ -63,7 +64,7 @@ const testimonials = [
 ];
 
 const TestimonialCard = ({ testimonial }) => (
-  <div className="bg-gray-800 rounded-xl p-6 shadow-lg">
+  <div  data-aos="zoom-in" className="bg-gray-800 rounded-xl p-6 shadow-lg">
     <div className="flex justify-between items-start mb-6">
       <div className="flex gap-4">
         <img
@@ -79,7 +80,7 @@ const TestimonialCard = ({ testimonial }) => (
       </div>
       <FaQuoteLeft className="text-3xl text-yellow-600 opacity-50" />
     </div>
-    <div className="mb-4">
+    <div data-aos="zoom-in" className="mb-4">
       <div className="flex gap-1 mb-3">
         {[...Array(testimonial.rating)].map((_, index) => (
           <FaStar key={index} className="text-yellow-600" />
@@ -111,7 +112,9 @@ export const UserFeedback = () => {
       pagination: 'splide__pagination custom-pagination',
     },
   };
-
+  useEffect(() => {
+    AOS.init({ duration: 800 });
+  }, []);
   return (
     <section className="bg-gray-900 py-16">
       <div className="max-w-7xl mx-auto px-4">
@@ -166,7 +169,7 @@ export const UserFeedback = () => {
         </div>
 
         {/* Call to Action */}
-        <div className="text-center mt-12">
+        <div data-aos="zoom-in" className="text-center mt-12">
           <p className="text-gray-300 mb-6">
             Join thousands of satisfied businesses using Afriton
           </p>

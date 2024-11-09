@@ -1,12 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import {
-
-  FaEnvelope,
-  FaPhone,
-  FaMapMarkerAlt,
-  FaChevronRight,
-
-} from 'react-icons/fa';
+import AOS from 'aos';
+import 'aos/dist/aos.css';
 import { Login } from './Login';
 import { Register } from './Register';
 import { Footer } from './Footer';
@@ -16,15 +10,16 @@ import Features from './Futures';
 import { NavBar } from './NavBar';
 import { HelloPage } from './HelloPage';
 import { ContactUs } from './ContactUs';
-
+import { AboutUs } from './AboutUs';
 
 const LandingPage = () => {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-
-
+  useEffect(() => {
+    AOS.init({ duration: 800 });
+  }, []);
 
   const Modal = ({ isOpen, onClose, title, children }) => {
     if (!isOpen) return null;
@@ -57,69 +52,46 @@ const LandingPage = () => {
     <div className="min-h-screen">
       {/* Navigation */}
       <NavBar setIsMenuOpen={setIsMenuOpen} setIsLoginOpen={setIsLoginOpen} setIsRegisterOpen={setIsRegisterOpen} isMenuOpen={isMenuOpen} />
+
       {/* Hello Page */}
-      <HelloPage />
+      <div data-aos="fade-up">
+        <HelloPage />
+      </div>
 
+      {/* Features Section with Animation */}
+      <div data-aos="fade-up">
+        <Features />
+      </div>
 
-      {/* Features Section */}
-      <Features />
-      {/* Services We Offer Section */}
-      <Services />
-      {/* About Section */}
-      <section id="about" className="py-20">
-        <div className="max-w-7xl mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-12">About Afriton</h2>
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div>
-              <h3 className="text-2xl font-bold mb-4">Our Mission</h3>
-              <p className="text-gray-600 mb-6">
-                Afriton aims to revolutionize cross-border payments in Africa by providing a secure,
-                efficient, and unified payment system that reduces dependency on physical cash.
-              </p>
-              <ul className="space-y-4">
-                {[
-                  "99.99% system uptime",
-                  "Support for 100,000 transactions per second",
-                  "Real-time currency conversion",
-                  "Multi-factor authentication"
-                ].map((item, index) => (
-                  <li key={index} className="flex items-center gap-2">
-                    <FaChevronRight className="text-yellow-600" />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="bg-gray-100 rounded-lg p-1">
-              <img src="https://s44650.pcdn.co/wp-content/uploads/2023/07/africa-digital-payments-1200-1678064273-1.jpg" alt="About Afriton" className="rounded-lg w-full h-auto" />
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* Services We Offer Section with Animation */}
+      <div data-aos="fade-up">
+        <Services />
+      </div>
 
-      {/* User feedback Section */}
-      <UserFeedback />
+      {/* About Section with Animation */}
+      <div data-aos="fade-up">
+        <AboutUs />
+      </div>
 
-      {/* Contact Section */}
-      <ContactUs />
-      {/* Footer */}
+      {/* User feedback Section with Animation */}
+      <div data-aos="fade-up">
+        <UserFeedback />
+      </div>
+
+      {/* Contact Section with Animation */}
+      <div data-aos="fade-up">
+        <ContactUs />
+      </div>
+
+      {/* Footer Section */}
       <Footer />
 
-
       {/* Modals */}
-      <Modal
-        isOpen={isLoginOpen}
-        onClose={() => setIsLoginOpen(false)}
-        title="Login"
-      >
+      <Modal isOpen={isLoginOpen} onClose={() => setIsLoginOpen(false)} title="Login">
         <Login />
       </Modal>
 
-      <Modal
-        isOpen={isRegisterOpen}
-        onClose={() => setIsRegisterOpen(false)}
-        title="Register"
-      >
+      <Modal isOpen={isRegisterOpen} onClose={() => setIsRegisterOpen(false)} title="Register">
         <Register />
       </Modal>
     </div>
