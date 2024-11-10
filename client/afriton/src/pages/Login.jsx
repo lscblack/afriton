@@ -73,7 +73,7 @@ export const Login = () => {
 
     return (
         <div className="bg-gradient-to-r from-yellow-900 to-red-900 h-screen flex justify-center items-center ">
-            <div className="w-4/6 max-md:w-full h-[700px] grid grid-cols-1 lg:grid-cols-2 gap-0 rounded-lg overflow-hidden max-lg:overflow-scroll max-lg:h-full">
+            <div className="w-4/6 max-md:w-full h-[700px] grid grid-cols-1 lg:grid-cols-2 gap-0 rounded-lg overflow-hidden max-lg:overflow-scroll max-lg:h-auto">
                 {/* Left Side Image */}
                 <div className="hidden lg:block bg-cover bg-center" style={{ backgroundImage: "url('https://i.pinimg.com/originals/e2/a6/a5/e2a6a58c5578d620e7d55677598593a0.gif')" }}>
                 </div>
