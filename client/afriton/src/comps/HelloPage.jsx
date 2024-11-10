@@ -24,7 +24,7 @@ export const HelloPage = () => {
     ];
 
     return (
-        <div className="relative h-[700px]">
+        <div className="relative h-[700px] max-lg:h-[500px]">
             <Splide
                 options={{
                     type: 'loop',
@@ -41,7 +41,7 @@ export const HelloPage = () => {
                     <SplideSlide key={index}>
                         <div
                             style={{ backgroundImage: `linear-gradient(rgba(17, 24, 39, 0.6), rgba(17, 24, 39, 0.9)), url(${slide.image})` }}
-                            className={`flex h-[80vh] max-md:h-[60vh] items-center justify-center bg-cover bg-center text-white px-6 ${slide.bg}`}
+                            className={`flex h-[80vh] max-md:h-[70vh] items-center justify-center bg-cover bg-center text-white px-6 ${slide.bg}`}
                         >
                             <div className="max-w-5xl max-md:w-full mx-auto text-center p-8">
                                 <h1 className="text-3xl md:text-6xl font-bold mb-6 transition-all duration-500 ease-in-out hover:text-yellow-600">{slide.title}</h1>

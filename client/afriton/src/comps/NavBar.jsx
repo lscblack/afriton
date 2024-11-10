@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 export const NavBar = ({ setIsMenuOpen, setIsLoginOpen, setIsRegisterOpen, isMenuOpen }) => {
+    const navigate = useNavigate()
     const [isScrolled, setIsScrolled] = useState(false);
 
     useEffect(() => {
@@ -52,8 +54,7 @@ export const NavBar = ({ setIsMenuOpen, setIsLoginOpen, setIsRegisterOpen, isMen
                         <a href="#contact" className="block py-2 hover:text-yellow-600">Contact</a>
                         <button
                             onClick={() => {
-                                setIsLoginOpen(true);
-                                setIsMenuOpen(false);
+                                navigate("/login")
                             }}
                             className="block w-full text-left py-2 hover:text-yellow-600"
                         >
@@ -61,8 +62,7 @@ export const NavBar = ({ setIsMenuOpen, setIsLoginOpen, setIsRegisterOpen, isMen
                         </button>
                         <button
                             onClick={() => {
-                                setIsRegisterOpen(true);
-                                setIsMenuOpen(false);
+                                navigate("/register")
                             }}
                             className="block w-full text-left py-2 hover:text-yellow-600"
                         >

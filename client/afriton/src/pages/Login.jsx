@@ -80,9 +80,9 @@ export const Login = () => {
 
                 {/* Right Side Form */}
                 <div className="flex justify-center items-center bg-white p-6  shadow-lg relative">
-                    <button onClick={() => navigate("/")} className='bg-yellow-500 hover:bg-yellow-600 text-white h-12 w-12 rounded-full absolute top-3 left-3 flex justify-center items-center' title='Back To Home'><FaBackward /></button>
+                    <button onClick={() => navigate("/")} className='bg-yellow-500 hover:bg-yellow-600 text-white h-12 w-12 rounded-full absolute top-3 max-lg:top-10 left-3 flex justify-center items-center' title='Back To Home'><FaBackward /></button>
                     <div className="w-full ">
-                        <h2 className="text-3xl font-semibold text-center text-yellow-600 mb-6 animate__animated animate__fadeIn">
+                        <h2 className="text-3xl max-lg:text-2xl font-semibold text-center text-yellow-600 mb-6 animate__animated animate__fadeIn">
                             Login to <span className="font-bold text-yellow-600 animate__animated animate__fadeIn">Afriton</span>
                         </h2>
                         {/* Error or Success Message */}
