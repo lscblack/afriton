@@ -50,7 +50,7 @@ export const Footer = () => {
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-gray-400">
                 <FaPhoneAlt className="text-yellow-600" />
-                <span>+1 234 567 890</span>
+                <span>+250 790 110 231</span>
               </div>
               <div className="flex items-center gap-2 text-gray-400">
                 <FaEnvelope className="text-yellow-600" />

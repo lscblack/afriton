@@ -30,14 +30,14 @@ export const ContactUs = () => {
                                 <FaPhone className="text-yellow-600 text-2xl" />
                                 <div>
                                     <h4 className="font-semibold">Phone</h4>
-                                    <p>+1 234 567 890</p>
+                                    <p>+250 790 110 231</p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-4" data-aos="fade-in">
                                 <FaMapMarkerAlt className="text-yellow-600 text-2xl" />
                                 <div>
                                     <h4 className="font-semibold">Address</h4>
-                                    <p>123 Afriton Street, Lagos, Nigeria</p>
+                                    <p>123 Afriton Street, Kigali, Rwanda</p>
                                 </div>
                             </div>
                         </div>
