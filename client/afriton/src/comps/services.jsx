@@ -113,7 +113,7 @@ const services = [
 
 const ServiceCard = ({ service }) => {
     return (
-        <div data-aos="zoom-in" className="group relative bg-white dark:bg-gray-800 rounded-2xl overflow-hidden transition-all duration-500 hover:shadow-2xl">
+        <div  className="group relative bg-white dark:bg-gray-800 rounded-2xl overflow-hidden transition-all duration-500 hover:shadow-2xl">
             <div className="absolute inset-0 bg-gradient-to-r from-yellow-600/10 to-yellow-600/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
 
             <div className="relative p-6 h-full flex flex-col">
