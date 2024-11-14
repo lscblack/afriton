@@ -113,7 +113,7 @@ const services = [
 
 const ServiceCard = ({ service }) => {
     return (
-        <div  className="group relative bg-white dark:bg-gray-800 rounded-2xl overflow-hidden transition-all duration-500 hover:shadow-2xl">
+        <div  className="group relative bg-gray-700 rounded-2xl overflow-hidden transition-all duration-500 hover:shadow-2xl cursor-pointer">
             <div className="absolute inset-0 bg-gradient-to-r from-yellow-600/10 to-yellow-600/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
 
             <div className="relative p-6 h-full flex flex-col">
@@ -121,16 +121,16 @@ const ServiceCard = ({ service }) => {
                     <div className="w-14 h-14 flex items-center justify-center rounded-2xl bg-yellow-600/10 text-yellow-600 transition-all duration-300 group-hover:bg-yellow-600 group-hover:text-white">
                         {service.icon}
                     </div>
-                    <div className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-700 group-hover:bg-yellow-600 transition-all duration-300">
-                        <FaArrowRight className="w-4 h-4 text-gray-400 dark:text-gray-300 group-hover:text-white" />
+                    <div className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-700 group-hover:bg-yellow-600 transition-all duration-300">
+                        <FaArrowRight className="w-4 h-4 text-gray-300 group-hover:text-white" />
                     </div>
                 </div>
 
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3 group-hover:text-yellow-600 dark:group-hover:text-yellow-500 transition-colors duration-300">
+                <h3 className="text-xl font-bold text-white mb-3 group-hover:text-yellow-500 transition-colors duration-300">
                     {service.title}
                 </h3>
 
-                <p className="text-gray-600 dark:text-gray-400 mb-6">
+                <p className="text-gray-400 mb-6">
                     {service.description}
                 </p>
 
@@ -139,7 +139,7 @@ const ServiceCard = ({ service }) => {
                         {service.features.map((feature, index) => (
                             <div key={index} className="flex items-center space-x-2 text-sm">
                                 <div className="w-1.5 h-1.5 rounded-full bg-yellow-600"></div>
-                                <span className="text-gray-600 dark:text-gray-400">{feature}</span>
+                                <span className="text-gray-400">{feature}</span>
                             </div>
                         ))}
                     </div>
@@ -154,7 +154,7 @@ export const Services = () => {
         AOS.init({ duration: 800 });
     }, []);
     return (
-        <section className="relative py-20 overflow-hidden bg-gradient-to-b from-white to-gray-100 dark:from-gray-900 dark:to-gray-800">
+        <section className="relative py-20 overflow-hidden bg-gradient-to-b  from-gray-600 to-gray-800">
             {/* Background Elements */}
             <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
                 <div className="absolute top-1/4 left-0 w-72 h-72 bg-yellow-600/5 rounded-full filter blur-3xl"></div>
@@ -164,11 +164,11 @@ export const Services = () => {
             <div className="max-w-7xl mx-auto px-4 relative">
                 {/* Header */}
                 <div className="text-center max-w-3xl mx-auto mb-16">
-                    <h2 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-6">
+                    <h2 className="text-4xl md:text-5xl font-bold  text-white mb-6">
                         Our Comprehensive{' '}
                         <span className="text-yellow-600">Services</span>
                     </h2>
-                    <p className="text-lg text-gray-600 dark:text-gray-400">
+                    <p className="text-lg  text-gray-400">
                         Experience the future of African banking with our innovative financial solutions
                         designed to make your money management seamless and efficient.
                     </p>
@@ -184,7 +184,7 @@ export const Services = () => {
                 {/* Call to Action */}
                 <div className="text-center mt-16" data-aos="zoom-in">
                     <div className="inline-flex flex-col items-center">
-                        <p className="text-gray-600 dark:text-gray-400 mb-6 text-lg">
+                        <p className="text-gray-400 mb-6 text-lg">
                             Ready to experience seamless financial services?
                         </p>
                         <button className="group relative px-8 py-4 bg-yellow-600 text-white rounded-xl font-semibold overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-yellow-600/20">

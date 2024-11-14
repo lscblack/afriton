@@ -72,14 +72,14 @@ export const Login = () => {
     };
 
     return (
-        <div className="bg-gradient-to-r from-yellow-900 to-red-900 h-screen flex justify-center items-center ">
-            <div className="w-4/6 max-md:w-full h-[700px] grid grid-cols-1 lg:grid-cols-2 gap-0 rounded-lg overflow-hidden max-lg:overflow-scroll max-lg:h-auto">
+        <div className="bg-gradient-to-r from-white to-slate-50 h-screen flex justify-center items-center ">
+            <div className="w-[100vw] max-lg:w-full h-screen flex flex-col lg:flex-row gap-0 rounded-lg overflow-hidden max-lg:overflow-scroll max-lg:h-auto">
                 {/* Left Side Image */}
-                <div className="hidden lg:block bg-cover bg-center" style={{ backgroundImage: "url('https://i.pinimg.com/originals/e2/a6/a5/e2a6a58c5578d620e7d55677598593a0.gif')" }}>
+                <div className="hidden lg:block bg-cover bg-center  h-screen w-full" style={{ backgroundImage: "url('https://i.pinimg.com/originals/e2/a6/a5/e2a6a58c5578d620e7d55677598593a0.gif')" }}>
                 </div>
 
                 {/* Right Side Form */}
-                <div className="flex justify-center items-center bg-white p-6  shadow-lg relative">
+                <div className="flex justify-center items-center bg-white p-6 relative h-screen w-full xl:w-4/6 2xl:p-[8rem]">
                     <button onClick={() => navigate("/")} className='bg-yellow-500 hover:bg-yellow-600 text-white h-12 w-12 rounded-full absolute top-3 max-lg:top-7 left-4 max-lg:text-sm max-lg:h-9 max-lg:w-9 flex justify-center items-center' title='Back To Home'><FaBackward /></button>
                     <div className="w-full ">
                         <h2 className="text-3xl max-lg:text-2xl font-semibold text-center text-yellow-600 mb-6 animate__animated animate__fadeIn">
