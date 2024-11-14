@@ -49,7 +49,6 @@ const features = [
 const FeatureCard = ({ feature, isActive, onClick }) => {
     return (
         <div
-            data-aos="zoom-in"
             onClick={onClick}
             className={`group cursor-pointer relative overflow-hidden rounded-2xl transition-all duration-500 
         ${isActive ? 'bg-yellow-600 md:row-span-2' : 'bg-white hover:bg-yellow-50'}`}

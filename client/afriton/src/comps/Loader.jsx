@@ -4,7 +4,7 @@ const Loading = () => {
   const text = "Afriton";
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
+    <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-slate-900">
       <div className="relative">
         {/* Afriton Circular Loading Animation */}
         <div className="relative flex justify-center items-center">
