@@ -1,252 +1,265 @@
 import React, { useState } from 'react';
-import {
-  FaHome,
-  FaWallet,
-  FaUsers,
-  FaUsersCog,
-  FaHistory,
-  FaChartBar,
-  FaCog,
-  FaBars,
-  FaUserCircle,
-  FaSignOutAlt,
-  FaMoneyBillWave,
-  FaFingerprint,
-  FaArrowLeft,
-  FaArrowRight,
-} from 'react-icons/fa';
+import { Bell, Settings, Map, Users, PieChart, Building2, UserRound, ClipboardList, ArrowRight, Send, CreditCard, Shield, Wallet, Heart, Brain, Scissors, Menu, X, LogOut, User, Mail, ChevronDown } from 'lucide-react';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
+import Sidebar from '../comps/Sidebar';
+import TopNavBar from '../comps/TopNavBar';
 
-// User type definitions
-const USER_TYPES = {
-  ADMIN: 'admin',
-  MANAGER: 'manager',
-  AGENT: 'agent',
-  USER: 'user'
-};
 
-// Sidebar menu items for different user types
-const MENU_ITEMS = {
-  [USER_TYPES.ADMIN]: [
-    { icon: FaHome, label: 'Dashboard', path: 'dashboard' },
-    { icon: FaUsersCog, label: 'User Management', path: 'users' },
-    { icon: FaChartBar, label: 'Analytics', path: 'analytics' },
-    { icon: FaHistory, label: 'Transaction History', path: 'transactions' },
-    { icon: FaCog, label: 'Settings', path: 'settings' }
-  ],
-  [USER_TYPES.MANAGER]: [
-    { icon: FaHome, label: 'Dashboard', path: 'dashboard' },
-    { icon: FaUsers, label: 'Agents', path: 'agents' },
-    { icon: FaMoneyBillWave, label: 'Commission', path: 'commission' },
-    { icon: FaHistory, label: 'Transactions', path: 'transactions' }
-  ],
-  [USER_TYPES.AGENT]: [
-    { icon: FaHome, label: 'Dashboard', path: 'dashboard' },
-    { icon: FaWallet, label: 'Wallet', path: 'wallet' },
-    { icon: FaMoneyBillWave, label: 'Commission', path: 'commission' },
-    { icon: FaHistory, label: 'Transactions', path: 'transactions' }
-  ],
-  [USER_TYPES.USER]: [
-    { icon: FaHome, label: 'Dashboard', path: 'dashboard' },
-    { icon: FaWallet, label: 'Wallet', path: 'wallet' },
-    { icon: FaFingerprint, label: 'Biometric', path: 'biometric' },
-    { icon: FaHistory, label: 'History', path: 'history' }
-  ]
-};
+const monthlyData = [
+  { month: 'Oct 2019', inpatients: 2800, outpatients: 1200 },
+  { month: 'Nov 2019', inpatients: 3000, outpatients: 1600 },
+  { month: 'Dec 2019', inpatients: 3800, outpatients: 800 },
+  { month: 'Jan 2020', inpatients: 2600, outpatients: 1000 },
+  { month: 'Feb 2020', inpatients: 2800, outpatients: 1400 },
+  { month: 'Mar 2020', inpatients: 3200, outpatients: 1000 },
+];
 
-// Sidebar Component
-const Sidebar = ({ isOpen, toggleSidebar, userType, activePath, setActivePath }) => {
-  const menuItems = MENU_ITEMS[userType];
+const timeData = [
+  { time: '07 am', patients: 70 },
+  { time: '08 am', patients: 113 },
+  { time: '09 am', patients: 85 },
+  { time: '10 am', patients: 120 },
+  { time: '11 am', patients: 95 },
+  { time: '12 pm', patients: 110 },
+];
 
-  return (
-        <div className={`fixed left-0 top-0 h-full bg-[#f3f8ff] text-gray-600 transition-all duration-300 z-20 
-      ${isOpen ? 'w-64' : 'w-20'} lg:relative`}>
-      <div className="flex items-center justify-between p-4 border-b border-gray-800">
-        <h1 className={`font-bold ${isOpen ? 'block' : 'hidden'}`}>Afriton</h1>
-        <button onClick={toggleSidebar} className="p-2 rounded hover:bg-gray-800">
-          {isOpen ? <FaArrowLeft /> : <FaArrowRight />}
-        </button>
-      </div>
-      <nav className="p-4">
-        {menuItems.map((item) => (
-          <button
-            key={item.path}
-            onClick={() => setActivePath(item.path)}
-            className={`flex items-center w-full p-3 rounded mb-2 transition-colors
-              ${activePath === item.path ? 'bg-blue-400 text-white' : 'hover:bg-blue-500 hover:text-white'}`}
-          >
-            <item.icon className={`text-xl ${isOpen ? 'mr-3' : 'mx-auto'}`} />
-            <span className={isOpen ? 'block' : 'hidden'}>{item.label}</span>
-          </button>
-        ))}
-      </nav>
-    </div>
-  );
-};
 
-// Header Component
-const Header = ({ toggleSidebar }) => {
-  const [showProfile, setShowProfile] = useState(false);
-
-  return (
-    <header className="bg-white border-b border-gray-200 fixed w-full top-0 z-10">
-      <div className="flex items-center justify-between p-4">
-        <button
-          onClick={toggleSidebar}
-          className="p-2 rounded-lg hover:bg-gray-100 lg:hidden"
-        >
-          <FaBars />
-        </button>
-        
-        <div className="relative">
-          <button
-            onClick={() => setShowProfile(!showProfile)}
-            className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-100"
-          >
-            <FaUserCircle className="text-2xl text-gray-600" />
-          </button>
-          
-          {showProfile && (
-            <div className="absolute right-30 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200">
-              <div className="p-4 border-b border-gray-200">
-                <p className="font-semibold">John Doe</p>
-                <p className="text-sm text-gray-600">john@afriton.com</p>
-              </div>
-              <div className="p-2">
-                <button className="flex items-center space-x-2 w-full p-2 rounded-lg hover:bg-gray-100 text-red-600">
-                  <FaSignOutAlt />
-                  <span>Logout</span>
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </header>
-  );
-};
-
-// Stats Card Component
-const StatsCard = ({ icon: Icon, title, value, change }) => (
-  <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-gray-600 text-sm">{title}</p>
-        <h3 className="text-2xl font-bold mt-2">{value}</h3>
-        {change && (
-          <p className={`text-sm mt-2 ${change >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
-            {change >= 0 ? '↑' : '↓'} {Math.abs(change)}%
-          </p>
-        )}
-      </div>
-      <Icon className="text-3xl text-blue-600" />
-    </div>
-  </div>
-);
-
-// Dashboard View Components
-const DashboardView = ({ userType }) => {
-  // Different stats for different user types
-  const stats = {
-    [USER_TYPES.ADMIN]: [
-      { icon: FaUsers, title: 'Total Users', value: '15,349', change: 12.5 },
-      { icon: FaMoneyBillWave, title: 'Total Transactions', value: '$2.4M', change: 8.3 },
-      { icon: FaUsersCog, title: 'Active Agents', value: '234', change: 5.7 },
-      { icon: FaChartBar, title: 'System Uptime', value: '99.99%', change: 0.01 }
-    ],
-    [USER_TYPES.MANAGER]: [
-      { icon: FaUsers, title: 'Active Agents', value: '45', change: 4.2 },
-      { icon: FaMoneyBillWave, title: 'Total Commission', value: '$12,450', change: 15.8 },
-      { icon: FaHistory, title: 'Monthly Transactions', value: '2,345', change: 7.3 }
-    ],
-    [USER_TYPES.AGENT]: [
-      { icon: FaWallet, title: 'Available Balance', value: '$3,450', change: 12.3 },
-      { icon: FaMoneyBillWave, title: 'Commission Earned', value: '$450', change: 8.7 },
-      { icon: FaHistory, title: 'Today\'s Transactions', value: '24', change: -2.1 }
-    ],
-    [USER_TYPES.USER]: [
-      { icon: FaWallet, title: 'Wallet Balance', value: '$1,234', change: 5.4 },
-      { icon: FaHistory, title: 'Recent Transactions', value: '12', change: -1.2 },
-      { icon: FaFingerprint, title: 'Biometric Status', value: 'Active', change: null }
-    ]
-  };
-
-  return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Dashboard Overview</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {stats[userType].map((stat, index) => (
-          <StatsCard key={index} {...stat} />
-        ))}
-      </div>
-      
-      {/* Add more dashboard content specific to user type */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-          <h3 className="text-lg font-semibold mb-4">Recent Activity</h3>
-          {/* Add activity list or chart here */}
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-          <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
-          {/* Add quick action buttons here */}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Main Dashboard Component
 const Dashboard = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [activePath, setActivePath] = useState('dashboard');
-  const [userType, setUserType] = useState(USER_TYPES.ADMIN); // For demo purposes
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
-  return (
-    <div className="h-screen bg-gray-50">
-      {/* Mobile sidebar overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-10 lg:hidden"
-          onClick={toggleSidebar}
-        />
-      )}
+  // Close dropdowns when clicking outside
+  const handleClickOutside = (e) => {
+    if (!e.target.closest('.profile-menu')) {
+      setProfileOpen(false);
+    }
+    if (!e.target.closest('.notification-menu')) {
+      setNotificationsOpen(false);
+    }
+  };
 
-      <div className="flex h-screen">
-        {/* Sidebar */}
-        <Sidebar
-          isOpen={sidebarOpen}
-          toggleSidebar={toggleSidebar}
-          userType={userType}
-          activePath={activePath}
-          setActivePath={setActivePath}
-        />
+  React.useEffect(() => {
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+
+  const handleLogout = () => {
+    console.log('Logging out...');
+    // Add your logout logic here
+  };
+  const data = [
+    {
+      icon: Send,
+      label: 'Cross Border Payments',
+      value: '2,580 transfers',
+      iconColor: 'text-blue-500',
+    },
+    {
+      icon: CreditCard,
+      label: 'Banking Services',
+      value: '$5.3M in transactions',
+      iconColor: 'text-green-500',
+    },
+    {
+      icon: PieChart,
+      label: 'Money Flow Control',
+      value: '12% budget growth',
+      iconColor: 'text-red-500',
+    },
+    {
+      icon: Shield,
+      label: 'Multi-Channel Access',
+      value: '35K active users',
+      iconColor: 'text-purple-500',
+    },
+    {
+      icon: ClipboardList,
+      label: 'Payments & Shopping',
+      value: '$1.2M spent',
+      iconColor: 'text-amber-500',
+    },
+    {
+      icon: Wallet,
+      label: 'Financial Growth',
+      value: '450 loans approved',
+      iconColor: 'text-indigo-500',
+    },
+    {
+      icon: Building2,
+      label: 'Business Solutions',
+      value: '$3.5M salaries processed',
+      iconColor: 'text-teal-500',
+    },
+    {
+      icon: Users,
+      label: 'Family & Savings',
+      value: '3.8K sub-accounts',
+      iconColor: 'text-pink-500',
+    },
+  ];
+  return (
+    <div className="min-h-screen bg-gray-50  dark:bg-[#08030e]">
+      {/* Header */}
+      <TopNavBar profileOpen={profileOpen} setProfileOpen={setProfileOpen} toggleSidebar={toggleSidebar} handleLogout={handleLogout} notificationsOpen={notificationsOpen} setNotificationsOpen={setNotificationsOpen} />
+
+      <div className="flex relative">
+        {/* Overlay for mobile sidebar */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+            onClick={toggleSidebar}
+          />
+        )}
+        {/** Sidebar imports */}
+        <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} toggleSidebar={toggleSidebar} handleLogout={handleLogout} />
 
         {/* Main Content */}
-        <div className="flex-1">
-          <Header toggleSidebar={toggleSidebar} />
-          
-          {/* Main Content Area */}
-          <main className="mt-16 p-6">
-            {activePath === 'dashboard' && <DashboardView userType={userType} />}
-            {activePath === 'wallet' && "hello"}
-            {/* Add other views based on activePath */}
-          </main>
-        </div>
-      </div>
+        {/* ... (rest of the main content remains the same) ... */}
+        {/* Main Content */}
+        <main className="flex-1 p-4 lg:p-6">
+          {/* Stats */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-6">
+            {data.map(({ icon: Icon, label, value, iconColor }) => (
+              <div key={label}
+                className="bg-white p-6 cursor-pointer rounded-xl  hover:shadow-xl transition-shadow duration-200 transform hover:scale-105"
+              >
+                <div className="flex items-center gap-4">
+                  <div className={`p-4 rounded-full shadow-md ${iconColor}`}>
+                    <Icon className="text-lg" size={28} />
+                  </div>
+                  <div>
+                    <div className="text-gray-800">{value}</div>
+                    <div className="text-xs text-gray-700">{label}</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
 
-      {/* User Type Switcher (for demo purposes) */}
-      <div className="fixed bottom-4 right-4 bg-white p-2 rounded-lg shadow-lg">
-        <select
-          value={userType}
-          onChange={(e) => setUserType(e.target.value)}
-          className="p-2 border rounded"
-        >
-          <option value={USER_TYPES.ADMIN}>Admin View</option>
-          <option value={USER_TYPES.MANAGER}>Manager View</option>
-          <option value={USER_TYPES.AGENT}>Agent View</option>
-          <option value={USER_TYPES.USER}>User View</option>
-        </select>
+          {/* Charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
+            {/* Bar Chart */}
+            <div className="lg:col-span-2 bg-white p-4 lg:p-6 rounded-xl shadow-sm">
+              <div className="flex flex-col sm:flex-row justify-between mb-4 gap-2">
+                <h2 className="text-lg font-semibold">Withdraws vs. Deposits</h2>
+                <select className="text-sm text-gray-500 border rounded-lg px-2 py-1">
+                  <option>by Week</option>
+                  <option>by Months</option>
+                  <option>by Year</option>
+                </select>
+              </div>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={monthlyData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <Bar dataKey="inpatients" fill="#F59E0B" />
+                    <Bar dataKey="outpatients" fill="#FCD34D" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Gender Distribution */}
+            <div className="bg-white p-4 lg:p-6 rounded-xl shadow-sm">
+              <h2 className="text-lg font-semibold mb-4">Withdraw & deposit</h2>
+              <div className="flex justify-center">
+                <div className="relative w-48 h-48">
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="text-2xl font-bold">28%</div>
+                  </div>
+                  <svg viewBox="0 0 36 36" className="w-full h-full">
+                    <path
+                      d="M18 2.0845
+                        a 15.9155 15.9155 0 0 1 0 31.831
+                        a 15.9155 15.9155 0 0 1 0 -31.831"
+                      fill="none"
+                      stroke="#F59E0B"
+                      strokeWidth="3"
+                      strokeDasharray="72, 100"
+                    />
+                    <path
+                      d="M18 2.0845
+                        a 15.9155 15.9155 0 0 1 0 31.831
+                        a 15.9155 15.9155 0 0 1 0 -31.831"
+                      fill="none"
+                      stroke="#FCD34D"
+                      strokeWidth="3"
+                      strokeDasharray="28, 100"
+                      strokeDashoffset="-72"
+                    />
+                  </svg>
+                </div>
+              </div>
+              <div className="flex justify-center gap-4 mt-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-amber-500 rounded-full"></div>
+                  Widthdraw
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-amber-300 rounded-full"></div>
+                  Deposit
+                </div>
+              </div>
+            </div>
+
+            {/* Time Admitted */}
+            <div className="lg:col-span-2 bg-white p-4 lg:p-6 rounded-xl shadow-sm">
+              <div className="flex flex-col sm:flex-row justify-between mb-4 gap-2">
+                <h2 className="text-lg font-semibold">Time Admitted</h2>
+                <select className="text-sm text-gray-500 border rounded-lg px-2 py-1">
+                  <option>Today</option>
+                </select>
+              </div>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={timeData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="time" />
+                    <YAxis />
+                    <Line type="monotone" dataKey="patients" stroke="#F59E0B" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Patients by Division */}
+            <div className="bg-white p-4 lg:p-6 rounded-xl shadow-sm">
+              <div className="flex flex-col sm:flex-row justify-between mb-4 gap-2">
+                <h2 className="text-lg font-semibold">Goal Savings By Categories</h2>
+                <select className="text-sm text-gray-500 border rounded-lg px-2 py-1">
+                  <option>All time</option>
+                </select>
+              </div>
+              <div className="space-y-4">
+                {[
+                  { icon: Heart, label: 'Buy Car', value: '20%' },
+                  { icon: Brain, label: 'Buy House', value: '10%' },
+                  { icon: Scissors, label: 'Money For Unversity', value: '99%' },
+                ].map(({ icon: Icon, label, value }) => (
+                  <div key={label} className="flex items-center gap-3">
+                    <div className="bg-amber-100 p-2 rounded-lg">
+                      <Icon className="text-amber-600" size={20} />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex justify-between">
+                        <div>{label}</div>
+                        <div className="font-semibold">{value}</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </main>
       </div>
     </div>
   );
