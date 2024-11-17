@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import AOS from 'aos';
 import 'aos/dist/aos.css';
 import Login  from './Login';
-import { Register } from './Register';
+import  Register  from './Register';
 import { Footer } from '../comps/Footer';
 import UserFeedback from '../comps/UserFeedBack';
 import Services from '../comps/services';
