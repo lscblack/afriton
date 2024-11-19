@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   Settings, Map, Users, PieChart, Building2, UserRound, ClipboardList,
-  ArrowRight, X, LogOut, Wallet, UserPlus, BarChart4, DollarSign,
+  ArrowRight, X, LogOut, Wallet, UserPlus, BarChart4, DollarSign, MagnetIcon,
   ArrowLeftRight, Fingerprint, Send, CreditCard, Shield,
 } from 'lucide-react';
 
@@ -109,7 +109,7 @@ const Sidebar = ({ sidebarOpen, toggleSidebar, handleLogout, userType = 'user' }
       {/* Sidebar */}
       <aside
         className={`
-          fixed lg:relative w-[300px] bg-white h-screen p-4 z-20 max-lg:z-50 transition-transform duration-300
+          fixed lg:relative w-[300px] bg-white dark:bg-[#0c0a1f] h-screen top-0 p-4 z-40 max-lg:z-50 transition-transform duration-300
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}
       >
@@ -118,23 +118,23 @@ const Sidebar = ({ sidebarOpen, toggleSidebar, handleLogout, userType = 'user' }
         </button>
 
         <button className="w-full max-md:hidden bg-amber-600 hover:bg-amber-700 text-white rounded-lg p-3 mb-6 flex items-center gap-2">
-          Register Business <ArrowRight size={20} />
+          AI Assistant <MagnetIcon size={20} />
         </button>
 
-        <nav className="space-y-2 overflow-auto h-screen pb-[200px]">
+        <nav className="space-y-2 overflow-auto  pb-[200px]">
           {links.map(({ icon, label, details, link }) => (
             <div key={label} className="group">
               <a
                 href={link}
-                className="flex items-center gap-3 p-3 text-gray-700 hover:bg-amber-50 rounded-lg"
+                className="flex items-center gap-3 p-3 text-gray-700 dark:text-slate-200 text-sm hover:bg-amber-50 hover:dark:bg-black rounded-lg"
               >
                 {icon}
                 {label}
               </a>
-              <div className="hidden group-hover:block pl-10 text-sm text-gray-500">
+              <div className="hidden group-hover:block pl-4 p-2 rounded-md dark:bg-black dark:text-slate-300 text-sm text-gray-500 fixed bg-white left-[16rem] w-64 z-50">
                 {details.map((detail, index) => (
                   <li key={index} className="mb-1">
-                     {detail}
+                    {detail}
                   </li>
                 ))}
               </div>
@@ -144,7 +144,7 @@ const Sidebar = ({ sidebarOpen, toggleSidebar, handleLogout, userType = 'user' }
           {/* Logout */}
           <button
             onClick={handleLogout}
-            className="flex items-center gap-3 p-3 text-red-600 hover:bg-red-50 rounded-lg w-full mt-4"
+            className="flex items-center gap-3 p-3 text-red-600 hover:bg-red-50 hover:dark:bg-black rounded-lg w-full mt-4"
           >
             <LogOut size={20} />
             Logout

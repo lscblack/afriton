@@ -104,11 +104,11 @@ const Dashboard = () => {
     },
   ];
   return (
-    <div className="min-h-screen bg-gray-50  dark:bg-[#08030e]">
+    <div className=" bg-gray-50  dark:bg-[#08030e]">
       {/* Header */}
       <TopNavBar profileOpen={profileOpen} setProfileOpen={setProfileOpen} toggleSidebar={toggleSidebar} handleLogout={handleLogout} notificationsOpen={notificationsOpen} setNotificationsOpen={setNotificationsOpen} />
 
-      <div className="flex relative">
+      <div className="flex relative overflow-auto">
         {/* Overlay for mobile sidebar */}
         {sidebarOpen && (
           <div
@@ -116,26 +116,26 @@ const Dashboard = () => {
             onClick={toggleSidebar}
           />
         )}
+
         {/** Sidebar imports */}
         <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} toggleSidebar={toggleSidebar} handleLogout={handleLogout} />
-
         {/* Main Content */}
         {/* ... (rest of the main content remains the same) ... */}
         {/* Main Content */}
-        <main className="flex-1 p-4 lg:p-6">
+        <main className="flex-1 p-4 lg:p-6 overflow-auto pb-10 z-0">
           {/* Stats */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-6">
             {data.map(({ icon: Icon, label, value, iconColor }) => (
               <div key={label}
-                className="bg-white p-6 cursor-pointer rounded-xl  hover:shadow-xl transition-shadow duration-200 transform hover:scale-105"
+                className="bg-white dark:bg-[#0c0a1f] p-6 cursor-pointer rounded-xl  hover:shadow-xl transition-shadow duration-200 transform hover:scale-105"
               >
                 <div className="flex items-center gap-4">
                   <div className={`p-4 rounded-full shadow-md ${iconColor}`}>
                     <Icon className="text-lg" size={28} />
                   </div>
                   <div>
-                    <div className="text-gray-800">{value}</div>
-                    <div className="text-xs text-gray-700">{label}</div>
+                    <div className="text-gray-800 dark:text-slate-300">{value}</div>
+                    <div className="text-xs text-gray-700 dark:text-slate-200">{label}</div>
                   </div>
                 </div>
               </div>
@@ -145,7 +145,7 @@ const Dashboard = () => {
           {/* Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
             {/* Bar Chart */}
-            <div className="lg:col-span-2 bg-white p-4 lg:p-6 rounded-xl shadow-sm">
+            <div className="lg:col-span-2 bg-white dark:bg-[#0c0a1f] p-4 lg:p-6 rounded-xl shadow-sm">
               <div className="flex flex-col sm:flex-row justify-between mb-4 gap-2">
                 <h2 className="text-lg font-semibold">Withdraws vs. Deposits</h2>
                 <select className="text-sm text-gray-500 border rounded-lg px-2 py-1">
@@ -168,12 +168,12 @@ const Dashboard = () => {
             </div>
 
             {/* Gender Distribution */}
-            <div className="bg-white p-4 lg:p-6 rounded-xl shadow-sm">
-              <h2 className="text-lg font-semibold mb-4">Withdraw & deposit</h2>
+            <div className="bg-white dark:bg-[#0c0a1f] p-4 lg:p-6 rounded-xl shadow-sm">
+              <h2 className="text-lg font-semibold mb-4 dark:text-slate-200">Withdraw & deposit</h2>
               <div className="flex justify-center">
                 <div className="relative w-48 h-48">
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="text-2xl font-bold">28%</div>
+                    <div className="text-2xl font-bold dark:text-slate-200">28%</div>
                   </div>
                   <svg viewBox="0 0 36 36" className="w-full h-full">
                     <path
@@ -199,21 +199,21 @@ const Dashboard = () => {
                 </div>
               </div>
               <div className="flex justify-center gap-4 mt-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-amber-500 rounded-full"></div>
+                <div className="flex items-center gap-2 dark:text-slate-200">
+                  <div className="w-3 h-3 bg-amber-500 rounded-full "></div>
                   Widthdraw
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-amber-300 rounded-full"></div>
+                <div className="flex items-center gap-2 dark:text-slate-200">
+                  <div className="w-3 h-3 bg-amber-300 rounded-full "></div>
                   Deposit
                 </div>
               </div>
             </div>
 
             {/* Time Admitted */}
-            <div className="lg:col-span-2 bg-white p-4 lg:p-6 rounded-xl shadow-sm">
+            <div className="lg:col-span-2 bg-white dark:bg-[#0c0a1f] p-4 lg:p-6 rounded-xl shadow-sm">
               <div className="flex flex-col sm:flex-row justify-between mb-4 gap-2">
-                <h2 className="text-lg font-semibold">Time Admitted</h2>
+                <h2 className="text-lg font-semibold dark:text-slate-200">Time Admitted</h2>
                 <select className="text-sm text-gray-500 border rounded-lg px-2 py-1">
                   <option>Today</option>
                 </select>
@@ -231,7 +231,7 @@ const Dashboard = () => {
             </div>
 
             {/* Patients by Division */}
-            <div className="bg-white p-4 lg:p-6 rounded-xl shadow-sm">
+            <div className="bg-white dark:bg-[#0c0a1f] p-4 lg:p-6 rounded-xl shadow-sm">
               <div className="flex flex-col sm:flex-row justify-between mb-4 gap-2">
                 <h2 className="text-lg font-semibold">Goal Savings By Categories</h2>
                 <select className="text-sm text-gray-500 border rounded-lg px-2 py-1">
@@ -249,7 +249,7 @@ const Dashboard = () => {
                       <Icon className="text-amber-600" size={20} />
                     </div>
                     <div className="flex-1">
-                      <div className="flex justify-between">
+                      <div className="flex justify-between dark:text-slate-200">
                         <div>{label}</div>
                         <div className="font-semibold">{value}</div>
                       </div>

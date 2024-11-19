@@ -1,36 +1,263 @@
-import React from 'react';
-import { Eye, EyeOff, Mail, Lock, User, HomeIcon } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Eye, EyeOff, Mail, Lock, User, HomeIcon, Phone, UserCircle2, User2, Users } from 'lucide-react';
+import axios from 'axios';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { useNavigate } from 'react-router-dom';
+import { jwtDecode } from 'jwt-decode';
+import PhoneInput from 'react-phone-input-2';
+import 'react-phone-input-2/lib/style.css';
+
+const slides = [
+  {
+    title: "Join our community today",
+    description: "Create an account to access all features and start your journey",
+    image: "https://quittogether.co.uk/wp-content/themes/quittogether/img/quit-together-animation-no-background.gif"
+  },
+  {
+    title: "Secure & Private",
+    description: "Your data is protected with enterprise-grade security",
+    image: "https://mir-s3-cdn-cf.behance.net/project_modules/fs/6b8a0699093857.5eeafdd995e46.gif"
+  },
+  {
+    title: "24/7 Support",
+    description: "Our support team is always here to help you",
+    image: "https://media.licdn.com/dms/image/v2/D5622AQG7o0kBxmSPzA/feedshare-shrink_2048_1536/feedshare-shrink_2048_1536/0/1686810302630?e=2147483647&v=beta&t=aDxkx--s5gJW9kBj1tLYV7_xTo-WrAYcRyxSbGJFSI8"
+  }
+];
+
+const phoneInputCustomStyles = {
+  container: {
+    width: '100%',
+  },
+  input: {
+    width: '100%',
+    height: '54px',
+    fontSize: '16px',
+    paddingLeft: '100px',
+    borderRadius: '12px',
+    border: '2px solid #e5e7eb',
+    backgroundColor: 'white',
+  },
+  button: {
+    border: 'none',
+    borderRadius: '12px 0 0 12px',
+    backgroundColor: 'transparent',
+    padding: '0 16px',
+    height: '54px',
+    minWidth: '90px',
+  }
+};
 
 const Register = () => {
-  const [showPassword, setShowPassword] = React.useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
-  const [currentSlide, setCurrentSlide] = React.useState(0);
+  const navigate = useNavigate();
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [apiToken, setApiToken] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    fname: '',
+    lname: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    gender: '',
+    phone: '',
+    avatar: ''
+  });
+  const [currentStep, setCurrentStep] = useState(1);
+  const [errors, setErrors] = useState({});
 
-  const slides = [
-    {
-      title: "Join our community today",
-      description: "Create an account to access all features and start your journey",
-      image: "/api/placeholder/400/300"
-    },
-    {
-      title: "Secure & Private",
-      description: "Your data is protected with enterprise-grade security",
-      image: "/api/placeholder/400/300"
-    },
-    {
-      title: "24/7 Support",
-      description: "Our support team is always here to help you",
-      image: "/api/placeholder/400/300"
-    }
-  ];
+  // Get API token on component mount
+  useEffect(() => {
+    const getAccessToken = async () => {
+      try {
+        const response = await axios.post(
+          `${import.meta.env.VITE_API_URL}/auth/access-token?username=${import.meta.env.VITE_AFRITON_FRONT_USERNAME}&password=${import.meta.env.VITE_AFRITON_FRONT_PASSWORD}`,
+          {
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          }
+        );
 
-  React.useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % slides.length);
-    }, 5000);
-    return () => clearInterval(timer);
+        if (response.data.token) {
+          setApiToken(response.data.token);
+        }
+      } catch (error) {
+        const errorMessage = error.response?.data?.detail || 
+                           error.response?.data?.message || 
+                           'Failed to initialize application';
+        toast.error(errorMessage);
+      }
+    };
+
+    getAccessToken();
   }, []);
 
+  // Handle form input changes
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  // Handle manual registration
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!apiToken) {
+      toast.error('Application not properly initialized');
+      return;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/auth/register`,
+        {
+          fname: formData.fname,
+          lname: formData.lname,
+          email: formData.email,
+          password: formData.password,
+          gender: formData.gender,
+          phone: formData.phone,
+          avatar: formData.avatar
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${apiToken}`
+          }
+        }
+      );
+
+      if (response.data) {
+        toast.success('Registration successful! Please check your email for verification.');
+        navigate('/login');
+      }
+    } catch (error) {
+      const errorMessage = error.response?.data?.detail || 'Registration failed';
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle Google registration
+  const handleGoogleResponse = async (response) => {
+    try {
+      if (!apiToken) {
+        toast.error('Application not properly initialized');
+        return;
+      }
+
+      const userObj = jwtDecode(response.credential);
+      
+      const googleResponse = await axios.post(
+        `${import.meta.env.VITE_API_URL}/auth/google-auth`,
+        {
+          create_user_request: {
+            email: userObj.email,
+            fname: userObj.given_name,
+            lname: userObj.family_name,
+            password: `Google_${Date.now()}`,
+            gender: ""
+          },
+          avatar: userObj.picture
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${apiToken}`
+          }
+        }
+      );
+
+      if (googleResponse.data) {
+        localStorage.setItem('token', googleResponse.data.access_token);
+        localStorage.setItem('userData', googleResponse.data.encrypted_data);
+        toast.success('Registration successful!');
+        navigate('/dashboard');
+      }
+    } catch (error) {
+      const errorMessage = error.response?.data?.detail || 'Registration with Google failed';
+      toast.error(errorMessage);
+    }
+  };
+
+  // Initialize Google Sign-In
+  useEffect(() => {
+    if (window.google?.accounts?.id) {
+      window.google.accounts.id.initialize({
+        client_id: import.meta.env.VITE_GOOGLE_AUTH_CLIENT_ID,
+        callback: handleGoogleResponse,
+      });
+      window.google.accounts.id.renderButton(
+        document.getElementById('googleSignInDiv'),
+        { theme: 'outline', size: 'large' }
+      );
+    }
+  }, []);
+
+  // Add form validation functions
+  const validateStep1 = () => {
+    const newErrors = {};
+    if (!formData.email) newErrors.email = 'Email is required';
+    else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Email is invalid';
+    if (!formData.password) newErrors.password = 'Password is required';
+    else if (formData.password.length < 6) newErrors.password = 'Password must be at least 6 characters';
+    if (!formData.confirmPassword) newErrors.confirmPassword = 'Please confirm your password';
+    else if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = 'Passwords do not match';
+    return newErrors;
+  };
+
+  const validateStep2 = () => {
+    const newErrors = {};
+    if (!formData.fname) newErrors.fname = 'First name is required';
+    if (!formData.lname) newErrors.lname = 'Last name is required';
+    return newErrors;
+  };
+
+  const validateStep3 = () => {
+    const newErrors = {};
+    if (!formData.gender) newErrors.gender = 'Gender is required';
+    if (!formData.phone) newErrors.phone = 'Phone number is required';
+    return newErrors;
+  };
+
+  // Add navigation functions
+  const handleNext = () => {
+    let stepErrors = {};
+    switch (currentStep) {
+      case 1:
+        stepErrors = validateStep1();
+        break;
+      case 2:
+        stepErrors = validateStep2();
+        break;
+      case 3:
+        stepErrors = validateStep3();
+        break;
+    }
+
+    setErrors(stepErrors);
+    if (Object.keys(stepErrors).length === 0) {
+      setCurrentStep(prev => prev + 1);
+    }
+  };
+
+  const handlePrevious = () => {
+    setCurrentStep(prev => prev - 1);
+  };
+
+  // Your existing JSX with updated form handling
   return (
     <div className="min-h-screen w-full bg-gray-50 flex items-center justify-center p-4 max-md:p-0">
       <div className="w-full max-w-7xl h-full bg-white rounded-2xl shadow-2xl flex overflow-hidden">
@@ -71,93 +298,238 @@ const Register = () => {
               <div className="flex-grow border-t border-gray-200"></div>
             </div>
 
-            {/* Full Name Input */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
-              <div className="relative">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
-                  <User size={20} />
-                </div>
-                <input
-                  type="text"
-                  className="w-full px-12 py-4 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                  placeholder="John Doe"
-                />
+            {/* Replace the existing form fields with this stepped form */}
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {currentStep === 1 && (
+                <>
+                  {/* Email Input */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+                    <div className="relative">
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                        <Mail size={20} />
+                      </div>
+                      <input
+                        type="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleInputChange}
+                        className={`w-full px-12 py-4 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent ${
+                          errors.email ? 'border-red-500' : ''
+                        }`}
+                        placeholder="name@company.com"
+                      />
+                    </div>
+                    {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
+                  </div>
+
+                  {/* Password Input */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                    <div className="relative">
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                        <Lock size={20} />
+                      </div>
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        name="password"
+                        value={formData.password}
+                        onChange={handleInputChange}
+                        className={`w-full px-12 py-4 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent ${
+                          errors.password ? 'border-red-500' : ''
+                        }`}
+                        placeholder="Create a strong password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                      </button>
+                    </div>
+                    {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
+                  </div>
+
+                  {/* Confirm Password Input */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
+                    <div className="relative">
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                        <Lock size={20} />
+                      </div>
+                      <input
+                        type={showConfirmPassword ? "text" : "password"}
+                        name="confirmPassword"
+                        value={formData.confirmPassword}
+                        onChange={handleInputChange}
+                        className={`w-full px-12 py-4 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent ${
+                          errors.confirmPassword ? 'border-red-500' : ''
+                        }`}
+                        placeholder="Confirm your password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                      </button>
+                    </div>
+                    {errors.confirmPassword && <p className="text-red-500 text-sm mt-1">{errors.confirmPassword}</p>}
+                  </div>
+                </>
+              )}
+
+              {currentStep === 2 && (
+                <>
+                  {/* First Name Input */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">First Name</label>
+                    <div className="relative">
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                        <User size={20} />
+                      </div>
+                      <input
+                        type="text"
+                        name="fname"
+                        value={formData.fname}
+                        onChange={handleInputChange}
+                        className={`w-full px-12 py-4 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent ${
+                          errors.fname ? 'border-red-500' : ''
+                        }`}
+                        placeholder="John"
+                      />
+                    </div>
+                    {errors.fname && <p className="text-red-500 text-sm mt-1">{errors.fname}</p>}
+                  </div>
+
+                  {/* Last Name Input */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Last Name</label>
+                    <div className="relative">
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                        <User size={20} />
+                      </div>
+                      <input
+                        type="text"
+                        name="lname"
+                        value={formData.lname}
+                        onChange={handleInputChange}
+                        className={`w-full px-12 py-4 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent ${
+                          errors.lname ? 'border-red-500' : ''
+                        }`}
+                        placeholder="Doe"
+                      />
+                    </div>
+                    {errors.lname && <p className="text-red-500 text-sm mt-1">{errors.lname}</p>}
+                  </div>
+                </>
+              )}
+
+              {currentStep === 3 && (
+                <>
+                  {/* Gender Select */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Gender</label>
+                    <div className="relative">
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                        {formData.gender === 'male' ? (
+                          <UserCircle2 size={20} />
+                        ) : formData.gender === 'female' ? (
+                          <User2 size={20} />
+                        ) : (
+                          <Users size={20} />
+                        )}
+                      </div>
+                      <select
+                        name="gender"
+                        value={formData.gender}
+                        onChange={handleInputChange}
+                        className={`w-full px-12 py-4 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent appearance-none bg-white ${
+                          errors.gender ? 'border-red-500' : ''
+                        }`}
+                      >
+                        <option value="">Select Gender</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Other</option>
+                      </select>
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </div>
+                    {errors.gender && <p className="text-red-500 text-sm mt-1">{errors.gender}</p>}
+                  </div>
+
+                  {/* Phone Input with Country Code */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
+                    <div className="relative">
+                      <PhoneInput
+                        country={'us'}
+                        value={formData.phone}
+                        onChange={(phone) => {
+                          setFormData(prev => ({
+                            ...prev,
+                            phone: phone
+                          }));
+                        }}
+                        inputProps={{
+                          name: 'phone',
+                          required: true,
+                          className: `${errors.phone ? 'border-red-500' : ''} focus:ring-2 focus:ring-amber-500 focus:border-transparent`
+                        }}
+                        containerClass="phone-input-container"
+                        containerStyle={phoneInputCustomStyles.container}
+                        inputStyle={phoneInputCustomStyles.input}
+                        buttonStyle={phoneInputCustomStyles.button}
+                        buttonClass="phone-input-flag-button"
+                        dropdownStyle={{ 
+                          width: 'max-content',
+                          borderRadius: '8px',
+                          marginTop: '4px'
+                        }}
+                      />
+                    </div>
+                    {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
+                  </div>
+                </>
+              )}
+
+              {/* Navigation Buttons */}
+              <div className="flex justify-between gap-4">
+                {currentStep > 1 && (
+                  <button
+                    type="button"
+                    onClick={handlePrevious}
+                    className="w-full bg-gray-500 text-white py-4 rounded-xl text-lg font-semibold hover:bg-gray-600 transition-colors"
+                  >
+                    Previous
+                  </button>
+                )}
+                
+                {currentStep < 3 ? (
+                  <button
+                    type="button"
+                    onClick={handleNext}
+                    className="w-full bg-amber-500 text-white py-4 rounded-xl text-lg font-semibold hover:bg-amber-600 transition-colors"
+                  >
+                    Next
+                  </button>
+                ) : (
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full bg-amber-500 text-white py-4 rounded-xl text-lg font-semibold hover:bg-amber-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loading ? 'Creating Account...' : 'Create Account'}
+                  </button>
+                )}
               </div>
-            </div>
-
-            {/* Email Input */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
-              <div className="relative">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
-                  <Mail size={20} />
-                </div>
-                <input
-                  type="email"
-                  className="w-full px-12 py-4 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                  placeholder="name@company.com"
-                />
-              </div>
-            </div>
-
-            {/* Password Input */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
-              <div className="relative">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
-                  <Lock size={20} />
-                </div>
-                <input
-                  type={showPassword ? "text" : "password"}
-                  className="w-full px-12 py-4 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                  placeholder="Create a strong password"
-                />
-                <button
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                </button>
-              </div>
-            </div>
-
-            {/* Confirm Password Input */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
-              <div className="relative">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
-                  <Lock size={20} />
-                </div>
-                <input
-                  type={showConfirmPassword ? "text" : "password"}
-                  className="w-full px-12 py-4 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                  placeholder="Confirm your password"
-                />
-                <button
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                </button>
-              </div>
-            </div>
-
-            {/* Terms and Conditions */}
-            <div className="flex items-start">
-              <input type="checkbox" className="w-5 h-5 mt-1 rounded-md border-2 text-amber-500 focus:ring-amber-500" />
-              <span className="ml-2 text-gray-600">
-                I agree to the{' '}
-                <a href="#" className="text-amber-500 hover:text-amber-600">Terms of Service</a>
-                {' '}and{' '}
-                <a href="#" className="text-amber-500 hover:text-amber-600">Privacy Policy</a>
-              </span>
-            </div>
-
-            {/* Register Button */}
-            <button className="w-full bg-amber-500 text-white py-4 rounded-xl text-lg font-semibold hover:bg-amber-600 transition-colors">
-              Create Account
-            </button>
+            </form>
 
             {/* Sign In Link */}
             <p className="text-center text-gray-600">

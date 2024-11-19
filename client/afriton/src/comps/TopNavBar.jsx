@@ -12,12 +12,12 @@ const TopNavBar = ({ profileOpen, setProfileOpen,notificationsOpen, setNotificat
 
   return (
     <>
-      <header className="bg-white p-4 flex justify-between items-center border-b sticky top-0 z-50">
+      <header className="bg-white dark:bg-[#0c0a1f] p-4 flex justify-between items-center border-b dark:border-black sticky top-0 z-50">
         <div className="flex items-center gap-2">
           <button className="lg:hidden" onClick={toggleSidebar}>
             <Menu className="text-gray-500" />
           </button>
-          <div className="text-amber-600 font-bold text-2xl">Afri-<span className="text-black">Ton</span></div>
+          <div className="text-amber-600 font-bold text-2xl">Afri-<span className="text-black dark:text-white">Ton</span></div>
         </div>
         <div className="flex items-center gap-4">
           {/* Notifications Dropdown */}
@@ -36,7 +36,7 @@ const TopNavBar = ({ profileOpen, setProfileOpen,notificationsOpen, setNotificat
             </button>
 
             {notificationsOpen && (
-              <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg py-2 border z-50">
+              <div className="absolute right-0 mt-2 w-80 bg-white dark: rounded-lg shadow-lg py-2 border z-50">
                 <h3 className="px-4 py-2 text-lg font-semibold border-b">Notifications</h3>
                 <div className="max-h-64 overflow-y-auto">
                   {notifications.map((notification) => (
@@ -69,7 +69,7 @@ const TopNavBar = ({ profileOpen, setProfileOpen,notificationsOpen, setNotificat
             </button>
 
             {profileOpen && (
-              <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg py-2 border z-50">
+              <div className="absolute right-0 mt-2 w-56 bg-white dark: rounded-lg shadow-lg py-2 border z-50">
                 <div className="px-4 py-2 border-b">
                   <div className="font-semibold">Dr Christian</div>
                   <div className="text-sm text-gray-500">chriss@afriton.com</div>

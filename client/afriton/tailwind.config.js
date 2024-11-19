@@ -4,7 +4,6 @@ export default {
     "./index.html",
     "./src/**/*.{svelte,js,ts,jsx,tsx}",
   ],
-  darkMode: 'class', // Enables dark mode with a class
   theme: {
     extend: {
       colors: {
@@ -17,7 +16,7 @@ export default {
           600: '#4b5563',
           900: '#111827',
         },
-        black: '#000000',
+        black: 'black',
       },
     },
   },
