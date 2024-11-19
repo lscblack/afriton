@@ -40,17 +40,13 @@ router = APIRouter(prefix="/auth", tags=["Send Notifications and OTP"])
     - transaction: For secure transaction verification
     """,
 )
-async def send_email(userFront:user_Front_dependency,details: EmailSchema, db: db_dependency):
+async def send_email(userFront:user_Front_dependency, details: EmailSchema, db: db_dependency):
     if isinstance(userFront, HTTPException):
-        raise userFront  # Re-raise the HTTPException if user is an instance of it
+        raise userFront
 
     if "dev" != userFront['acc_type']:
-        raise HTTPException(status_code=403, detail="Not Allowed To This Action only Adroit apps allowed!")
+        raise HTTPException(status_code=403, detail="Not Allowed To This Action only Afriton apps allowed!")
     
-    user = db.query(Users).filter(Users.email == details.toEmail).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="Email Id Not Found")
-
     otp_subjet = {
         "login": "Afriton Security - Login Verification Code",
         "email": "Afriton - Email Address Verification",
@@ -59,18 +55,37 @@ async def send_email(userFront:user_Front_dependency,details: EmailSchema, db: d
         "Info": "Afriton - Account Access Verification",
     }
     otp = random.randint(100000, 999999)  # Generates a 6-digit OTP
-    verification = random.randint(
-        1000000, 9999999
-    )  # Generates a 7-digit Verification OTP
+    verification = random.randint(1000000, 9999999)  # Generates a 7-digit Verification OTP
     purpose = details.purpose
-    # Remove existing OTPs for the user if any
-    otp_user = db.query(OTP).filter(OTP.account_id == user.id).first()
-    # If record exists, delete it
-    if otp_user:
-        db.delete(otp_user)
+
+    # Only check for existing user if purpose is not email verification
+    if purpose != "email":
+        user = db.query(Users).filter(Users.email == details.toEmail).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="Email Id Not Found")
+        account_id = user.email
+        fname = user.fname
+    else:
+        # For email verification, use email as account_id
+        account_id = details.toEmail
+        fname = "Afriton User"  # Generic name for email verification
+
+    # Remove existing OTPs if any
+    existing_otp = db.query(OTP).filter(
+        OTP.account_id == account_id,
+        OTP.purpose == purpose
+    ).first()
+    if existing_otp:
+        db.delete(existing_otp)
         db.commit()
+
     # Create and store the new OTP
-    new_otp = OTP(account_id=user.id, otp_code=otp, verification_code=verification, purpose=purpose)
+    new_otp = OTP(
+        account_id=account_id,  # Using email for email verification
+        otp_code=otp,
+        verification_code=verification,
+        purpose=purpose
+    )
     
     db.add(new_otp)
     db.commit()
@@ -89,7 +104,7 @@ async def send_email(userFront:user_Front_dependency,details: EmailSchema, db: d
     </ul>
     <p>If you didn't request this code, please secure your account immediately.</p>
     """
-    msg = custom_email(user.fname,heading,body)
+    msg = custom_email(fname, heading, body)
     if send_new_email(details.toEmail, sub, msg):
         return {"message": "Email sent successfully", "verification_Code": verification}
 
@@ -102,16 +117,20 @@ async def verify_opt(userFront:user_Front_dependency, data: OtpVerify, db: db_de
     if "dev" != userFront['acc_type']:
         raise HTTPException(status_code=403, detail="Not Allowed To This Action only Nova apps allowed!")
     
-    user_info = db.query(Users).filter(Users.email == data.email).first()
-    
-    # # Check if user exists and is already verified
-    # if user_info and user_info.acc_status:
-    #     raise HTTPException(status_code=400, detail="Email already verified. Please login.")
+    # For email verification, use email as account_id
+    if data.purpose == "email":
+        account_id = data.email
+    else:
+        user_info = db.query(Users).filter(Users.email == data.email).first()
+        if not user_info:
+            raise HTTPException(status_code=404, detail="User not found")
+        account_id = user_info.email
     
     valid_otp = db.query(OTP).filter(
         OTP.otp_code == data.otp_code,
         OTP.verification_code == data.verification_code,
-        OTP.account_id == user_info.id if user_info else None
+        OTP.account_id == account_id,
+        OTP.purpose == data.purpose
     ).first()
     
     if not valid_otp:
@@ -120,20 +139,11 @@ async def verify_opt(userFront:user_Front_dependency, data: OtpVerify, db: db_de
     if datetime.utcnow() - valid_otp.date > timedelta(minutes=10):
         raise HTTPException(status_code=404, detail="Security code has expired. Please request a new one")
     
-    if valid_otp.purpose == "email":
-        if user_info:
-            # If user exists but not verified, update status
-            user_info.acc_status = True
-            db.commit()
-            db.refresh(user_info)
-        
-        db.delete(valid_otp)
-        db.commit()
-        return {"detail": "Successfully Verified", "canProceed": True}
-    
+    # Clean up the OTP
     db.delete(valid_otp)
     db.commit()
-    return {"detail": "Successfully Verified"}
+    
+    return {"detail": "Successfully Verified", "canProceed": True}
 
 @router.get("/api/all/users")
 def get_all_userss(

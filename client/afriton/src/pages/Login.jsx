@@ -181,7 +181,8 @@ const LoginForm = () => {
         {
           otp_code: otpString,
           verification_code: verificationCode.toString(),
-          email: formData.email
+          email: formData.email,
+          purpose: "login"
         },
         {
           headers: {
@@ -211,6 +212,7 @@ const LoginForm = () => {
         {
           method,
           user_id: userId,
+          purpose: "login",
           email: formData.email
         },
         {

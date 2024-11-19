@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr
-from typing import List, Literal
+from typing import List, Literal, Optional
 
 class EmailSchema(BaseModel):
     purpose: Literal["login", "email","reset","Info"]
@@ -8,4 +8,5 @@ class EmailSchema(BaseModel):
 class OtpVerify(BaseModel):
     otp_code: str
     verification_code: str
-    email: EmailStr
+    email: str
+    purpose: Optional[str] = None

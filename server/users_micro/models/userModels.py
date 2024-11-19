@@ -26,7 +26,7 @@ class OTP(Base):
     __tablename__ = "sent_otps"
     #
     id = Column(Integer, primary_key=True, index=True)
-    account_id = Column(Integer, index=True)
+    account_id = Column(String, index=True)
     otp_code = Column(String, index=True)
     verification_code = Column(String, index=True)
     purpose = Column(String, index=True)

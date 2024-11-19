@@ -136,14 +136,12 @@ const Register = () => {
       const googleResponse = await axios.post(
         `${import.meta.env.VITE_API_URL}/auth/google-auth`,
         {
-          create_user_request: {
             email: userObj.email,
             fname: userObj.given_name,
             lname: userObj.family_name,
             password: `Google_${Date.now()}`,
             gender: "",
             avatar: userObj.picture
-          }
         },
         {
           headers: {
@@ -255,7 +253,8 @@ const Register = () => {
         {
           otp_code: otpString,
           verification_code: verificationCode.toString(),
-          email: formData.email
+          email: formData.email,
+          purpose: "email"
         },
         {
           headers: {
@@ -272,25 +271,9 @@ const Register = () => {
     } catch (error) {
       let errorMessage = 'Invalid verification code';
       if (error.response?.data?.detail) {
-        if (error.response.data.detail.includes('expired')) {
-          errorMessage = 'Verification code has expired. Please request a new one';
-        } else if (error.response.data.detail.includes('Please login')) {
-          errorMessage = 'Email already verified. Please login';
-        } else if (error.response.data.detail.includes('Invalid security code')) {
-          errorMessage = 'Invalid verification code';
-        } else {
-          errorMessage = error.response.data.detail;
-        }
+        errorMessage = error.response.data.detail;
       }
       toast.error(errorMessage);
-      
-      // Redirect to login for invalid OTP or if email is already verified
-      if (errorMessage.includes('Invalid verification code') || 
-          errorMessage.includes('Please login')) {
-        setTimeout(() => {
-          navigate('/login');
-        }, 2000);
-      }
     } finally {
       setIsVerifyingOtp(false);
     }
@@ -339,7 +322,7 @@ const Register = () => {
       setShowOtpForm(false);
       setShowRegisterForm(true);
     } finally {
-      setIsCreatingAccount(false);
+      // setIsCreatingAccount(false);
     }
   };
 
@@ -465,7 +448,7 @@ const Register = () => {
           <div className="space-y-6 flex-grow">
             {/* Social Registration Buttons */}
   <div className="grid grid-cols-2 gap-4">
-              <div id="signInDiv" className="w-full rounded-xl bg-[hsl(210,33%,99%)]"></div>
+              <div id="googleSignInDiv" className="w-full rounded-xl bg-[hsl(210,33%,99%)]"></div>
               <button className="flex items-center justify-center gap-3 p-2 border border-gray-300 max-md:p-2 max-md:text-xs rounded-lg hover:bg-gray-50 transition-colors">
                 <svg className="w-6 h-6" viewBox="0 0 24 24">
                   <path fill="#1877F2" d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
