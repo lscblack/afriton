@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff, Mail, Lock,HomeIcon } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, HomeIcon } from 'lucide-react';
 import axios from 'axios';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -15,7 +15,7 @@ const LoginForm = () => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = React.useState(false);
   const [currentSlide, setCurrentSlide] = React.useState(0);
-  const [apiToken, setApiToken] = useState('');
+  const [apiToken, setApiToken] = useState(localStorage.getItem('apiToken') || '');
   const [googleInitialized, setGoogleInitialized] = useState(false);
   const [showOtpForm, setShowOtpForm] = useState(false);
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -27,6 +27,9 @@ const LoginForm = () => {
   const [showLoginForm, setShowLoginForm] = useState(true);
   const [showOtpButton, setShowOtpButton] = useState(false);
   const [loginData, setLoginData] = useState(null);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isOtpSending, setIsOtpSending] = useState(false);
+  const [isOtpVerifying, setIsOtpVerifying] = useState(false);
 
   const slides = [
     {
@@ -56,31 +59,33 @@ const LoginForm = () => {
   useEffect(() => {
     const getAccessToken = async () => {
       try {
+        if (apiToken) {
+          return;
+        }
 
         const response = await axios.post(
           `${import.meta.env.VITE_API_URL}/auth/access-token?username=${import.meta.env.VITE_AFRITON_FRONT_USERNAME}&password=${import.meta.env.VITE_AFRITON_FRONT_PASSWORD}`,
           {
-              headers: {
-                  'Content-Type': 'application/json'
-              }
+            headers: {
+              'Content-Type': 'application/json'
+            }
           }
-      );
+        );
 
-        
         if (response.data.token) {
+          localStorage.setItem('apiToken', response.data.token);
           setApiToken(response.data.token);
         }
       } catch (error) {
         const errorMessage = error.response?.data?.detail || 
-                            error.response?.data?.message || 
-                            'Failed to initialize application';
+                           error.response?.data?.message || 
+                           'Failed to initialize application';
         toast.error(errorMessage);
-        console.error('Access token error:', error);
       }
     };
 
     getAccessToken();
-  }, []);
+  }, [apiToken]);
 
   useEffect(() => {
     let timer;
@@ -102,7 +107,7 @@ const LoginForm = () => {
 
   const handleSubmit = async (e) => {
     e?.preventDefault();
-    
+
     if (!apiToken || !formData.email || !formData.password) {
       toast.error('Please fill in all fields');
       return;
@@ -138,6 +143,7 @@ const LoginForm = () => {
   };
 
   const handleSendOtp = async () => {
+    setIsOtpSending(true);
     try {
       const otpResponse = await axios.post(
         `${import.meta.env.VITE_API_URL}/auth/send-otp`,
@@ -161,10 +167,13 @@ const LoginForm = () => {
       }
     } catch (error) {
       toast.error('Failed to send OTP');
+    } finally {
+      setIsOtpSending(false);
     }
   };
 
   const handleOtpVerification = async () => {
+    setIsOtpVerifying(true);
     try {
       const otpString = otp.join('');
       const response = await axios.post(
@@ -190,13 +199,15 @@ const LoginForm = () => {
     } catch (error) {
       const errorMessage = error.response?.data?.detail || 'Invalid OTP';
       toast.error(errorMessage);
+    } finally {
+      setIsOtpVerifying(false);
     }
   };
 
   const handle2FAMethod = async (method) => {
     try {
       const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/auth/send-2fa`,
+        `${import.meta.env.VITE_API_URL}/auth/send-otp`,
         {
           method,
           user_id: userId,
@@ -219,34 +230,6 @@ const LoginForm = () => {
     }
   };
 
-  const googleAuth = async (userObj) => {
-    try {
-      if (!apiToken) {
-        toast.error('Application not properly initialized');
-        return;
-      }
-
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/auth/google-auth-token`,
-        { Email: userObj.email },
-        {
-          headers: {
-            Authorization: `Bearer ${apiToken}`
-          }
-        }
-      );
-
-      if (response.data) {
-        localStorage.setItem('token', response.data.access_token);
-        localStorage.setItem('userData', response.data.encrypted_data);
-        toast.success('Login successful!');
-        navigate('/dashboard');
-      }
-    } catch (error) {
-      const errorMessage = error.response?.data?.detail || 'Failed to authenticate with Google';
-      toast.error(errorMessage);
-    }
-  };
 
   const handleGoogleResponse = async (response) => {
     try {
@@ -254,20 +237,12 @@ const LoginForm = () => {
         toast.error('Application not properly initialized');
         return;
       }
+      setIsGoogleLoading(true);
 
       const userObj = jwtDecode(response.credential);
       const googleResponse = await axios.post(
-        `${import.meta.env.VITE_API_URL}/auth/google-auth`,
-        {
-          create_user_request: {
-            email: userObj.email,
-            fname: userObj.given_name,
-            lname: userObj.family_name,
-            password: `Google_${Date.now()}`,
-            gender: ""
-          },
-          avatar: userObj.picture
-        },
+        `${import.meta.env.VITE_API_URL}/auth/google-auth-token?Email=${userObj.email}`,
+        {},
         {
           headers: {
             Authorization: `Bearer ${apiToken}`
@@ -276,31 +251,17 @@ const LoginForm = () => {
       );
 
       if (googleResponse.data) {
-        // Send OTP for 2FA
-        const otpResponse = await axios.post(
-          `${import.meta.env.VITE_API_URL}/auth/send-otp`,
-          {
-            purpose: "login",
-            toEmail: userObj.email
-          },
-          {
-            headers: {
-              Authorization: `Bearer ${apiToken}`
-            }
-          }
-        );
-
-        if (otpResponse.data.verification_Code) {
-          setVerificationCode(otpResponse.data.verification_Code);
-          setShowOtpForm(true);
-          setCountdown(600);
-          setFormData(prev => ({...prev, email: userObj.email}));
-          toast.success('OTP sent to your email');
-        }
+        // Store auth data
+        localStorage.setItem('token', googleResponse.data.access_token);
+        localStorage.setItem('userData', googleResponse.data.encrypted_data);
+        toast.success('Login successful!');
+        navigate('/dashboard');
       }
     } catch (error) {
       const errorMessage = error.response?.data?.detail || 'Failed to authenticate with Google';
       toast.error(errorMessage);
+    } finally {
+      setIsGoogleLoading(false);
     }
   };
 
@@ -324,23 +285,7 @@ const LoginForm = () => {
   }, []);
 
 
-  const handleGoogleClick = () => {
-    if (!googleInitialized) {
-      toast.error('Google sign-in is still initializing');
-      return;
-    }
-    
-    try {
-      window.google.accounts.id.prompt((notification) => {
-        if (notification.isNotDisplayed()) {
-          toast.error('Pop-up blocked or Google sign-in not available');
-        }
-      });
-    } catch (error) {
-      console.error('Google prompt error:', error);
-      toast.error('Failed to open Google sign-in');
-    }
-  };
+
 
   const handleOtpChange = (index, value) => {
     if (value.length > 1) {
@@ -378,19 +323,19 @@ const LoginForm = () => {
             </div>
             <h1 className="text-3xl xl:text-4xl font-bold text-gray-800 mb-3">Welcome Back!</h1>
             <p className="text-gray-600 text-lg flex gap-3 items-center">
-              Please sign in to continue 
+              Please sign in to continue
               <a href="/" className='text-blue-600 text-sm flex items-center' rel="noopener noreferrer">
-                <HomeIcon size={12}/> Home
+                <HomeIcon size={12} /> Home
               </a>
             </p>
           </div>
 
           <div className="space-y-6 flex-grow">
             <div className="grid grid-cols-2 gap-4">
-              <div id="signInDiv" className="w-full rounded-xl bg-[hsl(210,33%,99%)]"></div>
+              <div id="signInDiv" className={`w-full rounded-xl bg-[hsl(210,33%,99%)] ${isGoogleLoading ? 'opacity-50' : ''}`}></div>
               <button className="flex items-center justify-center gap-3 p-2 border border-gray-300 max-md:p-2 max-md:text-xs rounded-lg hover:bg-gray-50 transition-colors">
                 <svg className="w-6 h-6" viewBox="0 0 24 24">
-                  <path fill="#1877F2" d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                  <path fill="#1877F2" d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
                 </svg>
                 <span className="text-gray-600 font-medium">Sign in with Facebook</span>
               </button>
@@ -473,7 +418,7 @@ const LoginForm = () => {
                   </div>
                 )}
 
-                <button 
+                <button
                   onClick={handleSubmit}
                   disabled={loading}
                   className="w-full bg-amber-500 text-white py-4 rounded-xl text-lg font-semibold hover:bg-amber-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -495,9 +440,17 @@ const LoginForm = () => {
                 <p className="text-gray-600">Click below to receive verification code</p>
                 <button
                   onClick={handleSendOtp}
-                  className="w-full bg-amber-500 text-white py-4 rounded-xl text-lg font-semibold hover:bg-amber-600"
+                  disabled={isOtpSending}
+                  className="w-full bg-amber-500 text-white py-4 rounded-xl text-lg font-semibold hover:bg-amber-600 disabled:opacity-50"
                 >
-                  Get OTP on Email
+                  {isOtpSending ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="w-5 h-5 border-t-2 border-white rounded-full animate-spin"></div>
+                      Sending OTP...
+                    </div>
+                  ) : (
+                    'Get OTP on Email'
+                  )}
                 </button>
               </div>
             )}
@@ -530,9 +483,17 @@ const LoginForm = () => {
                 </div>
                 <button
                   onClick={handleOtpVerification}
-                  className="w-full bg-amber-500 text-white py-4 rounded-xl text-lg font-semibold hover:bg-amber-600"
+                  disabled={isOtpVerifying}
+                  className="w-full bg-amber-500 text-white py-4 rounded-xl text-lg font-semibold hover:bg-amber-600 disabled:opacity-50"
                 >
-                  Verify OTP
+                  {isOtpVerifying ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="w-5 h-5 border-t-2 border-white rounded-full animate-spin"></div>
+                      Verifying...
+                    </div>
+                  ) : (
+                    'Verify OTP'
+                  )}
                 </button>
               </div>
             )}
@@ -546,11 +507,11 @@ const LoginForm = () => {
               className={`absolute inset-0 p-12 xl:p-16 xl:pt-0 transition-opacity duration-500 ease-in-out flex flex-col justify-center
                 ${index === currentSlide ? 'opacity-100' : 'opacity-0'}`}
             >
-                <img
-                  src={slide.image}
-                  alt={slide.title}
-                  className="mb-12 rounded-xl w-full h-ful"
-                />
+              <img
+                src={slide.image}
+                alt={slide.title}
+                className="mb-12 rounded-xl w-full h-ful"
+              />
               <div className="max-w-lg">
                 <h2 className="text-4xl xl:text-5xl font-bold mb-6">{slide.title}</h2>
                 <p className="text-xl opacity-90">{slide.description}</p>

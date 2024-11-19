@@ -94,55 +94,42 @@ async def send_email(userFront:user_Front_dependency,details: EmailSchema, db: d
         return {"message": "Email sent successfully", "verification_Code": verification}
 
 
-@router.post(
-    "/verify-otp",
-    summary="Verify Security Code",
-    description="""\
-    Validates the security code for various Afriton operations (login, transactions, etc.).
-    
-    ### Request Body
-    ```json
-    {
-        "otp_code": "123456",
-        "verification_code": "1234567",
-        "email": "user@example.com"
-    }
-    ```
-    
-    ### Security Notes
-    - Codes expire after 10 minutes
-    - Failed attempts may lead to temporary account restrictions
-    - Used for securing cross-border transactions and account access
-    """,
-)
-async def verify_opt(userFront:user_Front_dependency,data: OtpVerify, db: db_dependency):
+@router.post("/verify-otp")
+async def verify_opt(userFront:user_Front_dependency, data: OtpVerify, db: db_dependency):
     if isinstance(userFront, HTTPException):
-        raise userFront  # Re-raise the HTTPException if user is an instance of it
+        raise userFront
 
     if "dev" != userFront['acc_type']:
         raise HTTPException(status_code=403, detail="Not Allowed To This Action only Nova apps allowed!")
     
     user_info = db.query(Users).filter(Users.email == data.email).first()
-    if not user_info:
-        raise HTTPException(status_code=404, detail="Account not found with this email")
+    
+    # # Check if user exists and is already verified
+    # if user_info and user_info.acc_status:
+    #     raise HTTPException(status_code=400, detail="Email already verified. Please login.")
     
     valid_otp = db.query(OTP).filter(
         OTP.otp_code == data.otp_code,
         OTP.verification_code == data.verification_code,
-        OTP.account_id == user_info.id
+        OTP.account_id == user_info.id if user_info else None
     ).first()
+    
     if not valid_otp:
         raise HTTPException(status_code=404, detail="Invalid security code")
     
     if datetime.utcnow() - valid_otp.date > timedelta(minutes=10):
         raise HTTPException(status_code=404, detail="Security code has expired. Please request a new one")
-        
     
     if valid_otp.purpose == "email":
-        user_info.acc_status = True
+        if user_info:
+            # If user exists but not verified, update status
+            user_info.acc_status = True
+            db.commit()
+            db.refresh(user_info)
+        
+        db.delete(valid_otp)
         db.commit()
-        db.refresh(user_info)
-        return {"detail": "Successfully Verified"}
+        return {"detail": "Successfully Verified", "canProceed": True}
     
     db.delete(valid_otp)
     db.commit()

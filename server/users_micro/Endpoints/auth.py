@@ -79,35 +79,44 @@ async def get_front_current_user(token: Annotated[str, Depends(oauth2_bearer)]):
 user_Front_dependency = Annotated[dict, Depends(get_front_current_user)]
 
 # handel register User
-@router.post("/register", description="This Endpoint Will Register User Manually")
-async def register_user(
-    userFront: user_Front_dependency,
-    db: db_dependency,
-    create_user_request: CreateUserRequest
-):
-    # Check if userFront is an instance of HTTPException
+@router.post("/register")
+async def register_user(userFront: user_Front_dependency, db: db_dependency, create_user_request: CreateUserRequest):
     if isinstance(userFront, HTTPException):
-        raise userFront  # Re-raise the HTTPException if user is an instance of it
+        raise userFront
 
-    # Check account type
     if userFront['acc_type'] != "dev":
         raise HTTPException(status_code=403, detail="Not Allowed To This Action; only Afriton apps allowed!")
 
     try:
-        # Check if email already exists
-        check_email = db.query(Users).filter(Users.email == create_user_request.email).first()
-        if check_email:
-            raise HTTPException(status_code=400, detail="Email is already taken")
-
-        # Generate unique 10-digit account ID
+        # Check if email exists
+        existing_user = db.query(Users).filter(Users.email == create_user_request.email).first()
+        
+        if existing_user:
+            if existing_user.acc_status:
+                # If account exists and is verified
+                raise HTTPException(status_code=400, detail="Email already exists. Please login.")
+            else:
+                # Update existing unverified user
+                existing_user.fname = create_user_request.fname
+                existing_user.lname = create_user_request.lname
+                existing_user.gender = create_user_request.gender
+                existing_user.avatar = create_user_request.avatar
+                existing_user.phone = create_user_request.phone
+                existing_user.password_hash = bcrypt_context.hash(create_user_request.password)
+                existing_user.acc_status = True
+                
+                db.commit()
+                db.refresh(existing_user)
+                return {"message": "Account updated successfully!", "user": create_user_request}
+        
+        # Create new user if email doesn't exist
         while True:
             account_id = str(random.randint(1000000000, 9999999999))
             if not db.query(Users).filter(Users.account_id == account_id).first():
                 break
 
-        # Create the user model
-        create_user_model = Users(
-            account_id=account_id,  # Add the generated account_id
+        new_user = Users(
+            account_id=account_id,
             fname=create_user_request.fname,
             lname=create_user_request.lname,
             email=create_user_request.email,
@@ -115,74 +124,19 @@ async def register_user(
             avatar=create_user_request.avatar,
             phone=create_user_request.phone,
             password_hash=bcrypt_context.hash(create_user_request.password),
+            acc_status=True
         )
 
-        # Add to the database and commit
-        db.add(create_user_model)
+        db.add(new_user)
         db.commit()
-        db.refresh(create_user_model)
-
-        # Prepare email content
-        heading = "Welcome to Afriton!"
-        sub = "Your Gateway to Seamless African Payments"
-        body = """
-            <p>Thank you for joining Afriton! We're excited to have you with us. You've successfully created your account, and now you can experience borderless financial transactions across Africa.</p>
-            
-            <h2>Why choose Afriton?</h2>
-            <p>We provide a secure and innovative platform for all your financial needs across Africa. Here's what makes us unique:</p>
-            <ul>
-            <li><b>Unified Currency:</b> Experience seamless transactions with our standardized African currency system.</li>
-            <li><b>Biometric Security:</b> Enjoy secure payments using cutting-edge fingerprint authentication.</li>
-            <li><b>Cross-Border Freedom:</b> Send and receive money across African countries instantly.</li>
-            <li><b>Smart Shopping:</b> Purchase products and services across the continent without currency barriers.</li>
-            <li><b>Secure and Reliable:</b> Your financial security is our top priority.</li>
-            <li><b>Customer Support:</b> Our dedicated support team is here to assist you every step of the way.</li>
-            <li><b>Easy deposits:</b> Deposit funds into your account with ease.</li>
-            <li><b>Quick withdrawals:</b> Withdraw your funds quickly and securely.</li>
-            <li><b>Sub-accounts:</b> Manage your finances with sub-accounts.</li>
-            <li><b>Goal tracking:</b> Track your financial goals with ease.</li>
-            <li><b>Flexible savings plans:</b> Manage your finances with flexible savings plans.</li>
-            <li><b>Family management:</b> Manage your family's finances with ease.</li>
-            <li><b>Currency exchange:</b> Exchange currencies with ease from any currency to Afriton currency.</li>
-            <li><b>Quick loans:</b> Access quick loans to meet your financial needs.</li>
-            <li><b>Referral rewards:</b> Earn rewards for referring friends and family.</li>
-            <li><b>Credit system:</b> Enjoy a credit system that allows you to borrow and repay funds.</li>
-            </ul>
-            
-            <h2>Getting Started</h2>
-            <p>To make the most of your Afriton account:</p>
-            <ol>
-            <li>Finish setting up your account</li>
-            <li>Verify your email address</li>
-            <li>Set up your biometric authentication</li>
-            <li>Add your preferred payment methods</li>
-            <li>Start enjoying borderless transactions!</li>
-            </ol>
-            
-            <p>Your account is your passport to a unified African financial ecosystem. Start exploring the possibilities today!</p>
-            
-            <p><b>Ready to begin?</b></p>
-            <p>Log in to your Afriton account and experience the future of African payments.</p>
-            
-
-        """
-        
-        msg = custom_email(create_user_model.fname, heading, body)
-
-        # Send the welcome email
-        if send_new_email(create_user_model.email, sub, msg):
-            return {"message": "User registered successfully!", "user": create_user_request}
+        db.refresh(new_user)
+        return {"message": "User registered successfully!", "user": create_user_request}
 
     except HTTPException as http_ex:
-        # If an HTTPException occurs, re-raise it
         raise http_ex
     except Exception as e:
-        # Log the error
-        print(f"Error occurred: {e}")
-        # Rollback the transaction if an error occurs
         db.rollback()
-        # Raise a general HTTPException for server errors
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # ------Login user and create token
 @router.post("/login")
@@ -271,7 +225,6 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_bearer)]):
 async def sign_up_with_google(
     userFront: user_Front_dependency,
     create_user_request: CreateUserRequest,
-    avatar: str,
     db: db_dependency,
 ):
     # Check if userFront is an HTTPException
@@ -324,7 +277,7 @@ async def sign_up_with_google(
             lname=create_user_request.lname,
             email=create_user_request.email,
             gender=create_user_request.gender or "",
-            avatar=avatar,
+            avatar=create_user_request.avatar,
             acc_status=True,
             password_hash=bcrypt_context.hash(create_user_request.password),
         )
@@ -338,7 +291,7 @@ async def sign_up_with_google(
         token = create_access_token(
             username=new_user.email,
             user_id=new_user.id,
-            acc_type=new_user.acc_type,
+            acc_type=new_user.user_type,
             expires_delta=timedelta(minutes=60 * 24 * 30),
         )
 
@@ -418,7 +371,7 @@ async def create_token_for_google_signup(
 
     # Only allow access for specific app types
     if userFront['acc_type'] != "dev":
-        raise HTTPException(status_code=403, detail="Only Afriton Love apps are allowed!")
+        raise HTTPException(status_code=403, detail="Only Afriton apps are allowed!")
 
     # Check if email already exists and account status is active
     existing_user = db.query(Users).filter(Users.email == Email).first()
