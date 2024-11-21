@@ -7,7 +7,7 @@ from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from jose import jwt, JWTError
 from db.connection import db_dependency
 from models import userModels
-from models.userModels import Users
+from models.userModels import Users, OTP
 from sqlalchemy import or_
 import json
 from schemas.schemas import CreateUserRequest, Token, FromData
@@ -409,4 +409,34 @@ async def create_token_for_google_signup(
         "token_type": "bearer",
         "encrypted_data": encrypted_data,
     }
+
+@router.post("/reset-password")
+async def reset_password(
+    userFront: user_Front_dependency,
+    db: db_dependency,
+    email: str,
+    new_password: str
+):
+    if isinstance(userFront, HTTPException):
+        raise userFront
+
+    if userFront['acc_type'] != "dev":
+        raise HTTPException(status_code=403, detail="Not Allowed To This Action")
+
+    try:
+        # Find user by email
+        user = db.query(Users).filter(Users.email == email).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Update password - no need to check verification code since we already verified
+        user.password_hash = bcrypt_context.hash(new_password)
+        db.commit()
+
+        return {"message": "Password reset successfully"}
+    except HTTPException as http_ex:
+        raise http_ex
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 

@@ -266,26 +266,41 @@ const LoginForm = () => {
       setIsGoogleLoading(false);
     }
   };
-
   useEffect(() => {
     const initializeGoogleAuth = () => {
       if (window.google?.accounts?.id) {
         window.google.accounts.id.initialize({
           client_id: import.meta.env.VITE_GOOGLE_AUTH_CLIENT_ID,
           callback: handleGoogleResponse,
+          ux_mode: 'popup', // Use redirect mode
+          // redirect_uri: window.location.origin + '/login', // Adjust dynamically for prod/dev
         });
+        // Render the button
         window.google.accounts.id.renderButton(
           document.getElementById('signInDiv'),
-          { theme: 'outline', size: 'large' }
+          {
+            theme: 'outline',
+            size: 'large',
+            width: '100%',
+          }
         );
       }
     };
 
-    // Add a small delay to ensure DOM is ready
-    const timeoutId = setTimeout(initializeGoogleAuth, 100);
-    return () => clearTimeout(timeoutId);
-  }, []);
+    const checkGoogleResponse = () => {
+      const params = new URLSearchParams(window.location.search);
+      const credential = params.get('credential'); // Extract the token from query params
 
+      if (credential) {
+        handleGoogleResponse({ credential }); // Call your handler with the token
+        navigate('/dashboard'); // Redirect to the dashboard programmatically
+      }
+    };
+
+    // Run the initialization and response check
+    initializeGoogleAuth();
+    checkGoogleResponse();
+  }, [navigate]);
 
 
 
@@ -333,13 +348,15 @@ const LoginForm = () => {
           </div>
 
           <div className="space-y-6 flex-grow">
-            <div className="grid grid-cols-2 gap-4">
-              <div id="signInDiv" className={`w-full rounded-xl bg-[hsl(210,33%,99%)] ${isGoogleLoading ? 'opacity-50' : ''}`}></div>
-              <button className="flex items-center justify-center gap-3 p-2 border border-gray-300 max-md:p-2 max-md:text-xs rounded-lg hover:bg-gray-50 transition-colors">
+            <div className="flex gap-4 items-center">
+              <div className='w-full border-r-2 rounded-lg border-gray-200 overflow-hidden'>
+                <div id="signInDiv" className={`w-full rounded-xl bg-[hsl(210,33%,99%)] ${isGoogleLoading ? 'opacity-50' : ''}`}></div>
+              </div>
+              <button className="flex w-full items-center justify-center gap-3 p-2 border border-gray-300 max-md:p-2 max-md:text-xs rounded-lg hover:bg-gray-50 transition-colors">
                 <svg className="w-6 h-6" viewBox="0 0 24 24">
                   <path fill="#1877F2" d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
                 </svg>
-                <span className="text-gray-600 font-medium">Sign in with Facebook</span>
+                <span className="text-gray-600 font-medium"><span className="max-md:hidden">Sign in with</span> Facebook</span>
               </button>
             </div>
 
@@ -397,7 +414,12 @@ const LoginForm = () => {
                     <input type="checkbox" className="w-5 h-5 rounded-md border-2 text-amber-500 focus:ring-amber-500" />
                     <span className="ml-2 text-gray-600">Remember me</span>
                   </label>
-                  <a href="#" className="text-amber-500 hover:text-amber-600 font-medium">Forgot Password?</a>
+                  <a 
+                    href="/forgot-password" 
+                    className="text-amber-500 hover:text-amber-600 font-medium"
+                  >
+                    Forgot Password?
+                  </a>
                 </div>
 
                 {show2FAOptions && !showOtpForm && (

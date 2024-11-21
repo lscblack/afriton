@@ -117,23 +117,23 @@ async def verify_opt(userFront:user_Front_dependency, data: OtpVerify, db: db_de
     if "dev" != userFront['acc_type']:
         raise HTTPException(status_code=403, detail="Not Allowed To This Action only Nova apps allowed!")
     
-    # For email verification, use email as account_id
-    if data.purpose == "email":
-        account_id = data.email
-    else:
-        user_info = db.query(Users).filter(Users.email == data.email).first()
-        if not user_info:
-            raise HTTPException(status_code=404, detail="User not found")
-        account_id = user_info.email
+    # For reset purpose, use email as account_id
+    account_id = data.email
+    
+    print(f"Checking OTP: {data.otp_code}, verification: {data.verification_code}, email: {account_id}, purpose: {data.purpose}")  # Debug print
     
     valid_otp = db.query(OTP).filter(
-        OTP.otp_code == data.otp_code,
-        OTP.verification_code == data.verification_code,
+        OTP.otp_code == str(data.otp_code),  # Convert to string for comparison
+        OTP.verification_code == str(data.verification_code),
         OTP.account_id == account_id,
         OTP.purpose == data.purpose
     ).first()
     
     if not valid_otp:
+        # Debug print to see what's in the database
+        existing_otp = db.query(OTP).filter(OTP.account_id == account_id).first()
+        if existing_otp:
+            print(f"Found OTP in DB: code={existing_otp.otp_code}, verification={existing_otp.verification_code}, purpose={existing_otp.purpose}")
         raise HTTPException(status_code=404, detail="Invalid security code")
     
     if datetime.utcnow() - valid_otp.date > timedelta(minutes=10):

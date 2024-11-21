@@ -9,4 +9,4 @@ class OtpVerify(BaseModel):
     otp_code: str
     verification_code: str
     email: str
-    purpose: Optional[str] = None
+    purpose: str
