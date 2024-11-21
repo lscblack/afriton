@@ -199,7 +199,7 @@ const LoginForm = () => {
         // Store user data
         localStorage.setItem('userInfo', JSON.stringify(loginData));
         // Update context
-        setUserData(loginData);
+        setUserData(loginData.user);
         
         toast.success('Login successful!');
         window.location.href= '/dashboard';
