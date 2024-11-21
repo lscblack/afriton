@@ -195,7 +195,8 @@ const LoginForm = () => {
         localStorage.setItem('token', loginData.access_token);
         localStorage.setItem('userData', loginData.encrypted_data);
         toast.success('Login successful!');
-        navigate('/dashboard');
+        window.location.href = '/dashboard';
+        // navigate('/dashboard');
       }
     } catch (error) {
       const errorMessage = error.response?.data?.detail || 'Invalid OTP';
@@ -255,9 +256,10 @@ const LoginForm = () => {
       if (googleResponse.data) {
         // Store auth data
         localStorage.setItem('token', googleResponse.data.access_token);
-        localStorage.setItem('userData', googleResponse.data.encrypted_data);
+        localStorage.setItem('userInfo', googleResponse.data.encrypted_data);
         toast.success('Login successful!');
-        navigate('/dashboard');
+        window.location.href = '/dashboard';
+        // navigate('/dashboard');
       }
     } catch (error) {
       const errorMessage = error.response?.data?.detail || 'Failed to authenticate with Google';
@@ -293,7 +295,7 @@ const LoginForm = () => {
 
       if (credential) {
         handleGoogleResponse({ credential }); // Call your handler with the token
-        navigate('/dashboard'); // Redirect to the dashboard programmatically
+        // navigate('/dashboard'); // Redirect to the dashboard programmatically
       }
     };
 

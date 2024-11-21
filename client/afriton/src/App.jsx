@@ -11,6 +11,10 @@ import ForgotPassword from './pages/ForgotPassword';
 const Dashboard = lazy(() => import('./pages/Dashbaord'));
 const LandingPage = lazy(() => import('./pages/landing_page'));
 function App() {
+  const token = localStorage.getItem('token');
+  const userData = localStorage.getItem('userInfo');
+
+
   const [count, setCount] = useState(0)
   return (
     <>
@@ -19,10 +23,10 @@ function App() {
         <Suspense fallback={<Loading/>}>
           <Routes>
             <Route path="/" element={<LandingPage />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/dashboard" element={token && userData ? <Dashboard /> : <Login />} />
+            <Route path="/login" element={token && userData ? <Dashboard /> : <Login />} />
+            <Route path="/register" element={token && userData ? <Dashboard /> : <Register />} />
+            <Route path="/forgot-password" element={token && userData ? <Dashboard /> : <ForgotPassword />} />
           </Routes>
         </Suspense>
       </Router>

@@ -3,6 +3,7 @@ import { Bell, Settings, Map, Users, PieChart, Building2, UserRound, ClipboardLi
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
 import Sidebar from '../comps/Sidebar';
 import TopNavBar from '../comps/TopNavBar';
+import { useNavigate } from 'react-router-dom';
 
 
 const monthlyData = [
@@ -25,6 +26,7 @@ const timeData = [
 
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -48,10 +50,12 @@ const Dashboard = () => {
     };
   }, []);
 
-
   const handleLogout = () => {
-    console.log('Logging out...');
-    // Add your logout logic here
+    // Clear all authentication-related items from localStorage
+    localStorage.removeItem('userInfo');
+    localStorage.removeItem('token');
+    localStorage.removeItem('ViewPanel');
+    window.location.href = '/login';
   };
   const data = [
     {
