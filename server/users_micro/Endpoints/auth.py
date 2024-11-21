@@ -162,16 +162,14 @@ async def login_for_access_token(
         user.email, user.id, user.user_type, timedelta(minutes=60 * 24 * 30)
     )
 
-    # Serialize the user object to a dictionary using the updated Pydantic model
+    # Return user info directly without encryption
     user_info = ReturnUser.from_orm(user).dict()
 
-    # Prepare the data for encryption
-    dat = {"UserInfo": user_info}  # Pass user_info instead of user
-
-    # Encrypt the data
-    data = encrypt_any_data(dat)
-
-    return {"access_token": token, "token_type": "bearer", "encrypted_data": data}
+    return {
+        "access_token": token, 
+        "token_type": "bearer", 
+        "user": user_info  # Return plain user info instead of encrypted data
+    }
 
 
 def authenticate_user(username: str, password: str, db):
@@ -224,7 +222,7 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_bearer)]):
 @router.post("/google-auth", status_code=200)
 async def sign_up_with_google(
     userFront: user_Front_dependency,
-    create_user_request: CreateUserRequest,
+    create_user_request: dict,
     db: db_dependency,
 ):
     # Check if userFront is an HTTPException
@@ -236,7 +234,7 @@ async def sign_up_with_google(
         raise HTTPException(status_code=403, detail="Not Allowed To This Action; only Afriton apps are allowed!")
 
     # Check if email exists
-    existing_user = db.query(Users).filter(Users.email == create_user_request.email).first()
+    existing_user = db.query(Users).filter(Users.email == create_user_request['email']).first()
 
     if existing_user:
         # Check if the account is verified
@@ -251,16 +249,14 @@ async def sign_up_with_google(
             expires_delta=timedelta(minutes=60 * 24 * 30),
         )
 
-        # Serialize the user object to a dictionary
-        user_info = ReturnUser.from_orm(existing_user).dict() 
+        # Return user info directly without encryption
+        user_info = ReturnUser.from_orm(existing_user).dict()
 
-        # Prepare the data for encryption
-        dat = {"UserInfo": user_info}
-        
-        # Encrypt the data
-        encrypted_data = encrypt_any_data(dat)
-        
-        return {"access_token": token, "token_type": "bearer", "encrypted_data": encrypted_data}
+        return {
+            "access_token": token, 
+            "token_type": "bearer", 
+            "user": user_info  # Return plain user info instead of encrypted data
+        }
 
     # If the email doesn't exist, create a new user
     try:
@@ -272,14 +268,14 @@ async def sign_up_with_google(
 
         # Create the user model
         new_user = Users(
-            account_id=account_id,  # Add the generated account_id
-            fname=create_user_request.fname,
-            lname=create_user_request.lname,
-            email=create_user_request.email,
-            gender=create_user_request.gender or "",
-            avatar=create_user_request.avatar,
+            account_id=account_id,
+            fname=create_user_request.get('fname', ''),
+            lname=create_user_request.get('lname', ''),
+            email=create_user_request.get('email', ''),
+            gender=create_user_request.get('gender', ''),
+            avatar=create_user_request.get('avatar', ''),
             acc_status=True,
-            password_hash=bcrypt_context.hash(create_user_request.password),
+            password_hash=bcrypt_context.hash(create_user_request.get('password', f'Google_{datetime.now().timestamp()}')),
         )
 
         # Add to the database and commit
@@ -295,8 +291,8 @@ async def sign_up_with_google(
             expires_delta=timedelta(minutes=60 * 24 * 30),
         )
 
-        # Serialize the user object to match the ReturnUser schema
-        user_info = ReturnUser.from_orm(new_user)
+        # Return user info directly without encryption
+        user_info = ReturnUser.from_orm(new_user).dict()
 
         # Prepare email content
         heading = "Welcome to Afriton!"
@@ -346,14 +342,11 @@ async def sign_up_with_google(
         # Send welcome email
         msg = custom_email(user_info.fname, heading, body)
         if send_new_email(user_info.email, sub, msg):
-            # Prepare the data for encryption
-            user_info_dict = ReturnUser.from_orm(user_info).dict() 
-            dat = {"UserInfo": user_info_dict}
-            
-            # Encrypt the data
-            encrypted_data = encrypt_any_data(dat)
-            
-            return {"access_token": token, "token_type": "bearer", "encrypted_data": encrypted_data}
+            return {
+                "access_token": token, 
+                "token_type": "bearer", 
+                "user": user_info  # Return plain user info instead of encrypted data
+            }
 
     except Exception as e:
         # Handle exceptions gracefully
@@ -397,17 +390,14 @@ async def create_token_for_google_signup(
         timedelta(minutes=60 * 24 * 30),
     )
 
-    # Serialize the user data into a dictionary format
-    user_info = ReturnUser.from_orm(existing_user).dict()  # Assuming ReturnUser is a Pydantic model
-
-    # Encrypt the user data dictionary
-    encrypted_data = encrypt_any_data({"UserInfo": user_info})
+    # Return user info directly without encryption
+    user_info = ReturnUser.from_orm(existing_user).dict()
 
     # Return token and encrypted user data
     return {
         "access_token": token,
         "token_type": "bearer",
-        "encrypted_data": encrypted_data,
+        "user": user_info,  # Return plain user info instead of encrypted data
     }
 
 @router.post("/reset-password")

@@ -8,6 +8,7 @@ import { jwtDecode } from 'jwt-decode';
 import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
 import { debounce } from 'lodash';
+import { useApp } from '../context/AppContext';
 
 const slides = [
   {
@@ -80,6 +81,7 @@ const Register = () => {
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
   const [showRegisterForm, setShowRegisterForm] = useState(true);
   const [isGoogleRegistering, setIsGoogleRegistering] = useState(false);
+  const { setUserData } = useApp();
 
   // Get API token on component mount
   useEffect(() => {
@@ -151,11 +153,17 @@ const Register = () => {
       );
 
       if (googleResponse.data) {
-        // Store auth data and redirect to dashboard
+        // Store the token
         localStorage.setItem('token', googleResponse.data.access_token);
-        localStorage.setItem('userData', googleResponse.data.encrypted_data);
+        // Store the encrypted user data
+        localStorage.setItem('userInfo', JSON.stringify({
+          encrypted_data: googleResponse.data.encrypted_data
+        }));
+        // Set user data in context
+        await setUserData(googleResponse.data.encrypted_data);
+        
         toast.success('Registration successful!');
-        navigate('/dashboard');
+        window.location.href= '/dashboard';
       }
     } catch (error) {
       let errorMessage = 'Google signup failed';
@@ -185,7 +193,6 @@ const Register = () => {
           {
             theme: 'outline',
             size: 'large',
-            width: '100%', // Ensures responsiveness
           }
         );
       }
@@ -307,7 +314,7 @@ const Register = () => {
           password: formData.password,
           gender: formData.gender,
           phone: formData.phone,
-          avatar: formData.avatar
+          avatar: formData.avatar || '',
         },
         {
           headers: {
@@ -316,28 +323,29 @@ const Register = () => {
         }
       );
 
-      if (response.data?.message) {
-        toast.success('Account created successfully! Please login.');
-        setTimeout(() => {
-          navigate('/login');
-        }, 2000);
+      if (response.data) {
+        // Store the token
+        localStorage.setItem('token', response.data.access_token);
+        // Store the encrypted user data
+        localStorage.setItem('userInfo', JSON.stringify({
+          encrypted_data: response.data.encrypted_data
+        }));
+        // Set user data in context
+        await setUserData(response.data.encrypted_data);
+        
+        toast.success('Account created successfully!');
+        navigate('/dashboard');
       }
     } catch (error) {
       let errorMessage = 'Registration failed';
       if (error.response?.data?.detail) {
-        if (typeof error.response.data.detail === 'string') {
-          errorMessage = error.response.data.detail;
-        } else if (Array.isArray(error.response.data.detail)) {
-          // Handle validation errors
-          errorMessage = error.response.data.detail.map(err => err.msg).join(', ');
-        }
+        errorMessage = typeof error.response.data.detail === 'string' 
+          ? error.response.data.detail 
+          : error.response.data.detail.map(err => err.msg).join(', ');
       }
       toast.error(errorMessage);
-      // If registration fails, allow user to try again
-      setShowOtpForm(false);
-      setShowRegisterForm(true);
     } finally {
-      // setIsCreatingAccount(false);
+      setIsCreatingAccount(false);
     }
   };
 

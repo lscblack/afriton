@@ -1,25 +1,30 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-/* Loading.css */
 
-/* Animation for each letter */
-.letter-animation {
-    display: inline-block;
-    opacity: 0;
-    transform: translateY(10px);
-    animation: fadeInUp 0.5s forwards;
+@layer base {
+  :root {
+    --primary-color: #4f46e5;
+    --background-color: #ffffff;
+    --text-color: #1f2937;
+    --input-bg: #ffffff;
+    --card-bg: #f3f4f6;
   }
-  
-  /* Define the animation for each letter */
-  @keyframes fadeInUp {
-    0% {
-      opacity: 0;
-      transform: translateY(10px);
-    }
-    100% {
-      opacity: 1;
-      transform: translateY(0);
-    }
+
+  .dark {
+    --primary-color: #6366f1;
+    --background-color: #1f2937;
+    --text-color: #f3f4f6;
+    --input-bg: #374151;
+    --card-bg: #2d3748;
   }
-  
+}
+
+/* Add smooth transitions for theme changes */
+* {
+  transition-property: color, background-color, border-color;
+  transition-duration: 200ms;
+  transition-timing-function: ease-in-out;
+}
+
+/* Keep your existing animations and other styles */

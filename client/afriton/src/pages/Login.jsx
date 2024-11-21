@@ -5,9 +5,11 @@ import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
+import { useApp } from '../context/AppContext';
 
 const LoginForm = () => {
   const navigate = useNavigate();
+  const { setUserData } = useApp();
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -191,12 +193,17 @@ const LoginForm = () => {
         }
       );
 
-      if (response.data.detail === "Successfully Verified") {
+      if (response.data.detail === "Successfully Verified" && loginData) {
+        // Store the token
         localStorage.setItem('token', loginData.access_token);
-        localStorage.setItem('userData', loginData.encrypted_data);
+        // Store user data
+        localStorage.setItem('userInfo', JSON.stringify(loginData));
+        // Update context
+        setUserData(loginData);
+        
         toast.success('Login successful!');
-        window.location.href = '/dashboard';
-        // navigate('/dashboard');
+        window.location.href= '/dashboard';
+        console.log(loginData)
       }
     } catch (error) {
       const errorMessage = error.response?.data?.detail || 'Invalid OTP';
@@ -256,10 +263,13 @@ const LoginForm = () => {
       if (googleResponse.data) {
         // Store auth data
         localStorage.setItem('token', googleResponse.data.access_token);
-        localStorage.setItem('userInfo', googleResponse.data.encrypted_data);
+        localStorage.setItem('userInfo', JSON.stringify(googleResponse.data));
+        // Update context
+        setUserData(googleResponse.data.user);
+        
         toast.success('Login successful!');
-        window.location.href = '/dashboard';
-        // navigate('/dashboard');
+        window.location.href= '/dashboard';
+        // console.log(googleResponse.data)
       }
     } catch (error) {
       const errorMessage = error.response?.data?.detail || 'Failed to authenticate with Google';
@@ -283,7 +293,6 @@ const LoginForm = () => {
           {
             theme: 'outline',
             size: 'large',
-            width: '100%',
           }
         );
       }
@@ -295,7 +304,7 @@ const LoginForm = () => {
 
       if (credential) {
         handleGoogleResponse({ credential }); // Call your handler with the token
-        // navigate('/dashboard'); // Redirect to the dashboard programmatically
+        window.location.href= '/dashboard'; // Redirect to the dashboard programmatically
       }
     };
 
@@ -328,6 +337,21 @@ const LoginForm = () => {
       if (value && index < 5) {
         otpInputRefs[index + 1].current?.focus();
       }
+    }
+  };
+
+  const handleLoginSuccess = (response) => {
+    if (response.data) {
+      // Store token
+      localStorage.setItem('token', response.data.access_token);
+      // Store user data
+      const userData = response.data.user;
+      localStorage.setItem('userInfo', JSON.stringify(userData));
+      // Update context
+      setUserData(userData);
+      
+      toast.success('Login successful!');
+      window.location.href= '/dashboard';
     }
   };
 
