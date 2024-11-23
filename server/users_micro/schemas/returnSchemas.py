@@ -9,10 +9,11 @@ class ReturnUser(BaseModel):
     avatar: Optional[str] = None
     gender: Optional[str] = None
     phone: Optional[str] = None
-    acc_type: Optional[str] = None
+    user_type: Optional[str] = None
     email: Optional[EmailStr] = None
     password: Optional[str] = None
     acc_status: Optional[bool] = False
+    is_wallet_active: Optional[bool] = False
     class Config:
         orm_mode = True
         from_attributes = True  # Enable this to use from_orm

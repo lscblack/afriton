@@ -3,7 +3,7 @@ from db.VerifyToken import user_Front_dependency,user_dependency
 from dotenv import load_dotenv
 import random
 from db.connection import db_dependency
-from models.userModels import Users, OTP
+from models.userModels import Users, OTP, Workers, Wallet
 from typing import Literal
 from functions.send_mail import send_new_email
 from functions.send_mulltiple import send_new_multi_email
@@ -154,7 +154,9 @@ def get_all_userss(
 ):
     if isinstance(user, HTTPException):
         raise user
-    if not user["acc_type"] == "admin":
+    #check user type from database
+    check_user = db.query(Users).filter(Users.id == user['user_id']).first()
+    if not check_user.user_type == "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Persmission Denied"
@@ -187,3 +189,128 @@ async def send_emails_to_users(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to send emails: {e}"
         )
+    
+# change user type if your admin can change to any type or manager can user to agent only
+@router.post("/change-user-type")
+def change_user_type(
+    user: user_dependency, 
+    db: db_dependency,
+    user_type: Literal["manager", "agent"],
+    user_id: int,
+    location: str
+):
+    if isinstance(user, HTTPException):
+        raise user
+        
+    check_user = db.query(Users).filter(Users.id == user['user_id']).first()
+    if not check_user or (check_user.user_type not in ["admin", "manager"]):
+        raise HTTPException(status_code=403, detail="Permission Denied")
+
+    # Check if user exists
+    user_to_change = db.query(Users).filter(Users.id == user_id).first()
+    if not user_to_change:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Manager can only create agents in their location
+    if check_user.user_type == "manager":
+        if user_type != "agent":
+            raise HTTPException(status_code=403, detail="Managers can only create agents")
+            
+        # Get manager's worker record
+        manager_worker = db.query(Workers).filter(Workers.user_id == check_user.id).first()
+        if not manager_worker or manager_worker.location != location:
+            raise HTTPException(status_code=403, detail="Managers can only create agents in their location")
+
+    # Set default allowed balance based on worker type
+    allowed_balance = 5000 if user_type == "agent" else 100000
+
+    # Check if user is already a worker
+    existing_worker = db.query(Workers).filter(Workers.user_id == user_id).first()
+    if existing_worker:
+        raise HTTPException(status_code=400, detail="User is already a worker")
+
+    # Create worker record
+    new_worker = Workers(
+        user_id=user_id,
+        allowed_balance=allowed_balance,
+        available_balance=allowed_balance,
+        location=location,
+        worker_type=user_type,
+        managed_by=check_user.id if user_type == "agent" else None
+    )
+    
+    # Update user type
+    user_to_change.user_type = user_type
+    
+    # Create commission wallet for the new agent/manager
+    commission_wallet = Wallet(
+        account_id=user_to_change.account_id,
+        balance=0.0,
+        wallet_type=f"{user_type}-wallet", #agent-wallet or manager-wallet
+        wallet_status=True
+    )
+    
+    # Create savings wallet if it doesn't exist
+    savings_wallet = db.query(Wallet).filter(
+        Wallet.account_id == user_to_change.account_id,
+        Wallet.wallet_type == "savings"
+    ).first()
+    
+    if not savings_wallet:
+        savings_wallet = Wallet(
+            account_id=user_to_change.account_id,
+            balance=0.0,
+            wallet_type="savings",
+            wallet_status=True
+        )
+        db.add(savings_wallet)
+    
+    db.add(new_worker)
+    db.add(commission_wallet)
+    db.commit()
+
+    # Send email notification
+    heading = "Afriton Role Update"
+    sub = "Your Role Has Been Updated"
+    body = f"""
+    <p>Hi {user_to_change.fname},</p>
+    <p>Your role has been updated to {user_type}.</p>
+    <p>Location: {location}</p>
+    <p>Available Balance: {allowed_balance} Afriton</p>
+    <p>Two wallets have been created for you:</p>
+    <ul>
+        <li>Commission Wallet: For receiving commission on transactions</li>
+        <li>Savings Wallet: For your personal savings</li>
+    </ul>
+    <p>You will receive 3% commission on all withdrawals processed.</p>
+    """
+    msg = custom_email(user_to_change.fname, heading, body)
+    
+    if send_new_email(user_to_change.email, sub, msg):
+        return {
+            "message": "User type changed and wallets created successfully",
+            "details": {
+                "user_type": user_type,
+                "location": location,
+                "allowed_balance": allowed_balance,
+                "wallets": [
+                    {"type": f"{user_type}-wallet", "balance": 0.0},
+                    {"type": "savings", "balance": 0.0}
+                ]
+            }
+        }
+    else:
+        return {
+            "message": "User type changed and wallets created but email notification failed",
+            "details": {
+                "user_type": user_type,
+                "location": location,
+                "allowed_balance": allowed_balance,
+                "wallets": [
+                    {"type": f"{user_type}-wallet", "balance": 0.0},
+                    {"type": "savings", "balance": 0.0}
+                ]
+            }
+        }
+    
+    

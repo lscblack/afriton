@@ -20,6 +20,7 @@ export function AppProvider({ children }) {
     }
   });
   const [viewPanel, setViewPanel] = useState(localStorage.getItem('ViewPanel') || 'dashboard');
+  const [viewUser, setViewUser] = useState(localStorage.getItem('ViewUser') || 'citizen');
 
   useEffect(() => {
     const root = document.documentElement;
@@ -55,6 +56,8 @@ export function AppProvider({ children }) {
     setUserInfo,
     viewPanel,
     setViewPanel,
+    viewUser,
+    setViewUser,
     toggleTheme,
     setUserData,
     clearUserData,

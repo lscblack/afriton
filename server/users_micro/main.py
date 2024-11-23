@@ -2,9 +2,14 @@ from enum import Enum
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
-from Endpoints import auth,otp
+from Endpoints import auth,otp,wallet,conversionRate
 from fastapi.responses import HTMLResponse
-   
+from db.database import Base, engine
+
+# Create all tables
+# Base.metadata.drop_all(bind=engine)  # Comment this out after first run
+Base.metadata.create_all(bind=engine)  # This will only create missing tables
+
 app = FastAPI(
     title="Users Afriton Api Documentation.",  # Replace with your desired title
     description="Afriton. ",
@@ -22,7 +27,9 @@ app.add_middleware(
 # Include the routers from auth, apis, and otp
 
 app.include_router(auth.router)
+app.include_router(conversionRate.router)
 app.include_router(otp.router)
+app.include_router(wallet.router)
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
     html_content = """

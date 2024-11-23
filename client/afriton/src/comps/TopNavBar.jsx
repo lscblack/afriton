@@ -4,7 +4,7 @@ import { Bell, Settings, Menu, X, LogOut, User, Mail, ChevronDown } from 'lucide
 import { useApp } from '../context/AppContext';
 
 const TopNavBar = ({ profileOpen, setProfileOpen, notificationsOpen, setNotificationsOpen, toggleSidebar, handleLogout }) => {
-  const { userInfo } = useApp();
+  const { userInfo,viewUser, setViewUser,viewPanel, setViewPanel } = useApp();
   const [userData, setUserData] = useState(null);
   
   const notifications = [
@@ -125,31 +125,36 @@ const TopNavBar = ({ profileOpen, setProfileOpen, notificationsOpen, setNotifica
             </button>
 
             {profileOpen && (
-              <div className="absolute right-0 mt-2 w-56 bg-white dark: rounded-lg shadow-lg py-2 border z-50">
-                <div className="px-4 py-2 border-b">
+              <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-[#0c0a1f] dark:text-slate-200 dark:border-black rounded-lg shadow-lg py-2 border z-50">
+                <div className="px-4 py-2 border-b dark:border-black">
                   <div className="font-semibold">
                     {userData ? `${userData.fname} ${userData.lname}` : 'User'}
                   </div>
-                  <div className="text-sm text-gray-500">
+                  <div className="text-sm text-gray-500 dark:text-slate-400">
                     {userData?.email || 'No email available'}
                   </div>
+                  {userData?.user_type != "citizen" && <div className="text-sm text-yellow-600 font-bold text-center mt-2 cursor-pointer hover:text-yellow-700" onClick={()=>{
+                    setViewUser(viewUser == "citizen" ? userData?.user_type : "citizen" );setProfileOpen(false);setViewPanel("dashboard" );
+                  }}>
+                    change to  {viewUser == "citizen" ? userData?.user_type : "citizen" }
+                  </div>}
                 </div>
-                <a href="#" className="px-4 py-2 hover:bg-gray-50 flex items-center gap-2 text-gray-700">
+                <a href="#" className="px-4 py-2 hover:bg-gray-50 dark:hover:bg-black flex items-center gap-2 text-gray-700 dark:text-slate-200">
                   <User size={16} />
                   <span>Profile</span>
                 </a>
-                <a href="#" className="px-4 py-2 hover:bg-gray-50 flex items-center gap-2 text-gray-700">
+                <a href="#" className="px-4 py-2 hover:bg-gray-50 dark:hover:bg-black flex items-center gap-2 text-gray-700 dark:text-slate-200 ">
                   <Settings size={16} />
                   <span>Settings</span>
                 </a>
-                <a href="#" className="px-4 py-2 hover:bg-gray-50 flex items-center gap-2 text-gray-700">
+                <a href="#" className="px-4 py-2 hover:bg-gray-50 dark:hover:bg-black flex items-center gap-2 text-gray-700 dark:text-slate-200 ">
                   <Mail size={16} />
                   <span>Messages</span>
                 </a>
                 <div className="border-t mt-2">
                   <button
                     onClick={handleLogout}
-                    className="px-4 py-2 hover:bg-gray-50 flex items-center gap-2 text-red-600 w-full"
+                    className="px-4 py-2 hover:bg-gray-50 dark:hover:bg-black flex items-center gap-2 text-red-600 w-full "
                   >
                     <LogOut size={16} />
                     <span>Logout</span>

@@ -275,7 +275,7 @@ async def sign_up_with_google(
             gender=create_user_request.get('gender', ''),
             avatar=create_user_request.get('avatar', ''),
             acc_status=True,
-            password_hash=bcrypt_context.hash(create_user_request.get('password', f'Google_{datetime.now().timestamp()}')),
+            password_hash=bcrypt_context.hash(create_user_request.get('email', '')),
         )
 
         # Add to the database and commit
@@ -340,8 +340,8 @@ async def sign_up_with_google(
         """
         
         # Send welcome email
-        msg = custom_email(user_info.fname, heading, body)
-        if send_new_email(user_info.email, sub, msg):
+        msg = custom_email(new_user.fname, heading, body)
+        if send_new_email(new_user.email, sub, msg):
             return {
                 "access_token": token, 
                 "token_type": "bearer", 
@@ -429,4 +429,5 @@ async def reset_password(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
 

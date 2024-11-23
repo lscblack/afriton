@@ -1,14 +1,26 @@
 import { useState } from 'react';
 import {
-  Settings, Map, Users, PieChart, Building2, UserRound, ClipboardList,
-  ArrowRight, X, LogOut, Wallet, UserPlus, BarChart4, DollarSign, MagnetIcon,
-  ArrowLeftRight, Fingerprint, Send, CreditCard, Shield,
+  Settings, Map, Users, PieChart, Building2, UserRound, ClipboardList,ChartArea,
+   X, LogOut, 
+  ArrowLeftRight, Send, CreditCard, Shield, Wallet, 
 } from 'lucide-react';
+import { useApp } from '../context/AppContext';
 
-const Sidebar = ({ sidebarOpen, toggleSidebar, handleLogout, userType = 'user' }) => {
+const Sidebar = ({ sidebarOpen, toggleSidebar, handleLogout}) => {
+  const { userInfo,viewUser, setViewUser,viewPanel, setViewPanel } = useApp();
   // Extended Sidebar Links Configuration
   const sidebarLinks = {
-    user: [
+    citizen: [
+      {
+        icon:<ChartArea/>,
+        label:"Dashboard",
+        details:[
+          'View your dashboard',
+          'Track your financial activities',
+          'Monitor your account balance',
+        ],
+        viewpanelS: 'dashboard',
+      },
       {
         icon: <Send />,
         label: 'Cross Border Payments',
@@ -18,7 +30,7 @@ const Sidebar = ({ sidebarOpen, toggleSidebar, handleLogout, userType = 'user' }
           'Real-time tracking',
           'Secure transactions',
         ],
-        link: '/payments',
+        viewpanelS: 'payments',
       },
       {
         icon: <CreditCard />,
@@ -29,7 +41,7 @@ const Sidebar = ({ sidebarOpen, toggleSidebar, handleLogout, userType = 'user' }
           'Account management',
           '24/7 banking access',
         ],
-        link: '/banking',
+        viewpanelS: 'banking',
       },
       {
         icon: <PieChart />,
@@ -40,69 +52,203 @@ const Sidebar = ({ sidebarOpen, toggleSidebar, handleLogout, userType = 'user' }
           'Budget planning',
           'Custom alerts',
         ],
-        link: '/money-flow',
+        viewpanelS: 'money-flow',
+      },
+    ],
+    agent: [
+      {
+        icon: <ChartArea/>,
+        label:"Dashboard",
+        details:[
+          'View your dashboard',
+          'Track your financial activities',
+          'Monitor your account balance',
+        ],
+        viewpanelS: 'dashboard',
       },
       {
-        icon: <Shield />,
-        label: 'Multi-Channel Access',
+        icon: <CreditCard />,
+        label: 'Deposit Money',
         details: [
-          'Biometric security',
-          'Mobile app access',
-          'USSD banking',
-          'Card transactions',
+          'Deposit funds on behalf of users',
+          'Real-time confirmations',
+          'Track deposit history',
+          'Low processing fees',
         ],
-        link: '/access',
+        viewpanelS: 'deposit',
       },
       {
-        icon: <ClipboardList />,
-        label: 'Payments & Shopping',
+        icon: <Send />,
+        label: 'Withdraw Money',
         details: [
-          'Peer-to-peer transfers',
-          'Shopping payments',
-          'Merchant integration',
-          'Loyalty rewards',
+          'Process user withdrawals',
+          'Instant wallet updates',
+          'Secure transactions',
+          'Track withdrawal history',
         ],
-        link: '/shopping',
+        viewpanelS: 'withdraw',
+      },
+      {
+        icon: <PieChart />,
+        label: 'Commission Overview',
+        details: [
+          'View earned commissions',
+          'Track monthly summaries',
+          'Performance-based bonuses',
+          'Detailed commission breakdown',
+        ],
+        viewpanelS: 'commission',
       },
       {
         icon: <Wallet />,
-        label: 'Financial Growth',
+        label: 'Agent Wallet',
         details: [
-          'Quick loans',
-          'Referral rewards',
-          'Credit system',
-          'Investment options',
+          'Monitor current wallet balance',
+          'View transaction history',
+          'Set withdrawal goals',
+          'Manage linked accounts',
         ],
-        link: '/growth',
+        viewpanelS: 'agent-wallet',
       },
       {
-        icon: <Building2 />,
-        label: 'Business Solutions',
+        icon: <ClipboardList />,
+        label: 'Transaction History',
         details: [
-          'Bulk payments',
-          'Automated salaries',
-          'Business analytics',
-          'Employee management',
+          'Access detailed transaction logs',
+          'Filter by deposits, withdrawals, or transfers',
+          'Export history reports',
+          'Track user-specific activity',
         ],
-        link: '/business',
+        viewpanelS: 'transaction-history',
+      },
+    ],
+    admin: [
+      {
+        icon: <ChartArea/>,
+        label:"Dashboard",
+        details:[
+          'View system dashboard',
+          'Track system financial activities',
+          'Monitor System account balance',
+        ],
+        viewpanelS: 'dashboard',
       },
       {
         icon: <Users />,
-        label: 'Family & Savings',
+        label: 'User Management',
         details: [
-          'Sub-accounts',
-          'Goal tracking',
-          'Flexible savings plans',
-          'Family management',
+          'Add or remove agents and managers',
+          'Promote users to different roles',
+          'Track user activity logs',
+          'Reset account credentials',
         ],
-        link: '/savings',
+        viewpanelS: 'user-management',
+      },
+      {
+        icon: <Wallet />,
+        label: 'Wallet Management',
+        details: [
+          'Monitor all wallets',
+          'Resolve wallet discrepancies',
+          'Enable or disable wallets',
+          'View system-wide wallet growth',
+        ],
+        viewpanelS: 'wallet-management',
+      },
+      {
+        icon: <PieChart />,
+        label: 'System Commission Overview',
+        details: [
+          'Track commissions across all regions',
+          'Set commission rates for agents and managers',
+          'Generate financial reports',
+          'Analyze overall commission trends',
+        ],
+        viewpanelS: 'system-commission',
+      },
+      {
+        icon: <ClipboardList />,
+        label: 'Role Management',
+        details: [
+          'Change user roles',
+          'Promote users to agent or manager',
+          'Demote or reassign roles',
+          'Ensure compliance with access permissions',
+        ],
+        viewpanelS: 'role-management',
       },
     ],
-    // Add additional user types (admin, agent, manager) as needed
+    manager: [
+      {
+        icon: <ChartArea/>,
+        label:"Dashboard",
+        details:[
+          'View your dashboard',
+          'Track your financial activities',
+          'Monitor your account balance',
+        ],
+        viewpanelS: 'dashboard',
+      },
+      {
+        icon: <Users />,
+        label: 'Agent Overview',
+        details: [
+          'View agents in your region',
+          'Track agent performance',
+          'Assign tasks and monitor completion',
+          'Access detailed agent logs',
+        ],
+        viewpanelS: 'agent-overview',
+      },
+      {
+        icon: <PieChart />,
+        label: 'Regional Revenue',
+        details: [
+          'Monitor total regional revenue',
+          'Analyze revenue by agent activity',
+          'Export financial summaries',
+          'Compare performance metrics',
+        ],
+        viewpanelS: 'regional-revenue',
+      },
+      {
+        icon: <ClipboardList />,
+        label: 'Withdraw Commission',
+        details: [
+          'View earned commissions',
+          'Withdraw commission earnings',
+          'Set withdrawal schedules',
+          'Access detailed commission logs',
+        ],
+        viewpanelS: 'withdraw-commission',
+      },
+      {
+        icon: <ClipboardList />,
+        label: 'Region Management',
+        details: [
+          'Track remaining funds in your region',
+          'Ensure proper fund allocation',
+          'Optimize agent resources',
+          'Resolve regional wallet issues',
+        ],
+        viewpanelS: 'region-management',
+      },
+      {
+        icon: <Users />,
+        label: 'User Role Management',
+        details: [
+          'Promote users to agents',
+          'Monitor role-based performance',
+          'Reassign user responsibilities',
+          'Track user role changes',
+        ],
+        viewpanelS: 'user-role-management',
+      },
+    ],
   };
-
+  
   // Determine links based on userType
-  const links = sidebarLinks[userType] || sidebarLinks.user;
+  const links = sidebarLinks[viewUser] || sidebarLinks.citizen;
 
   return (
     <>
@@ -113,19 +259,23 @@ const Sidebar = ({ sidebarOpen, toggleSidebar, handleLogout, userType = 'user' }
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}
       >
-        <button className="lg:hidden absolute bg-amber-600 top-2 rounded-full p-1 right-3" onClick={toggleSidebar}>
-          <X className="text-gray-50" />
-        </button>
+        
 
-        <button className="w-full max-md:hidden bg-amber-600 hover:bg-amber-700 text-white rounded-lg p-3 mb-6 flex items-center gap-2">
+        {/* <button className="w-full max-md:hidden bg-amber-600 hover:bg-amber-700 text-white rounded-lg p-3 mb-6 flex items-center gap-2">
           AI Assistant <MagnetIcon size={20} />
+        </button> */}
+        <div className="flex justify-between items-center gap-4">
+        <h2 className='text-white text-xl font-bold capitalize p-3'>Menu</h2>
+        <button className=" bg-amber-600 top-2 lg:hidden block rounded-full p-1 right-3" onClick={toggleSidebar}>
+          <ArrowLeftRight className="text-gray-50" />
         </button>
+        </div>
 
-        <nav className="space-y-2 overflow-auto  pb-[200px]">
-          {links.map(({ icon, label, details, link }) => (
+        <nav className="space-y-2 overflow-auto  pb-[200px] pl-4">
+          {links.map(({ icon, label, details, viewpanelS }) => (
             <div key={label} className="group">
               <a
-                href={link}
+                onClick={()=>setViewPanel(viewpanelS)}
                 className="flex items-center gap-3 p-3 text-gray-700 dark:text-slate-200 text-sm hover:bg-amber-50 hover:dark:bg-black rounded-lg"
               >
                 {icon}
