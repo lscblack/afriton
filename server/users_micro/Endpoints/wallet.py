@@ -90,49 +90,18 @@ def get_wallet_details(user: user_dependency, db: db_dependency):
     if not check_user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Define available wallet types based on user type
-    available_wallet_types = {
-        "citizen": ["savings", "goal", "business", "family", "emergency"],
-        "agent": ["savings", "agent-wallet"],
-        "manager": ["savings", "manager-wallet"],
-        "admin": ["savings"]  # Admin only has savings wallet
-    }
-
-    # Get allowed wallet types for this user
-    allowed_types = available_wallet_types.get(check_user.user_type, ["savings"])
-
-    # Get existing wallets
+    # Get only existing wallets for this user
     wallet_details = db.query(Wallet).filter(
         Wallet.account_id == check_user.account_id,
-        Wallet.wallet_type.in_(allowed_types)
+        Wallet.wallet_status == True  # Only get active wallets
     ).all()
 
-    # Create a dictionary of existing wallets
-    existing_wallets = {w.wallet_type: w for w in wallet_details}
-
-    # Prepare response with all allowed wallet types
-    response_wallets = []
-    for wallet_type in allowed_types:
-        if wallet_type in existing_wallets:
-            # Use existing wallet data
-            wallet = existing_wallets[wallet_type]
-            response_wallets.append({
-                "id": wallet.id,
-                "account_id": wallet.account_id,
-                "balance": wallet.balance,
-                "wallet_type": wallet_type,
-                "wallet_status": wallet.wallet_status,
-                "created_at": wallet.created_at,
-                "exists": True
-            })
-        else:
-            # Include non-existent wallet type with default values
-            response_wallets.append({
-                "wallet_type": wallet_type,
-                "balance": 0.0,
-                "wallet_status": False,
-                "exists": False
-            })
+    if not wallet_details:
+        return {
+            "message": "No active wallets found",
+            "user_type": check_user.user_type,
+            "wallet_details": []
+        }
 
     # Add wallet type descriptions
     wallet_descriptions = {
@@ -145,13 +114,22 @@ def get_wallet_details(user: user_dependency, db: db_dependency):
         "manager-wallet": "Manage agent networks and earn commissions"
     }
 
+    # Format response with only existing wallets
+    response_wallets = [{
+        "id": wallet.id,
+        "account_id": wallet.account_id,
+        "balance": wallet.balance,
+        "wallet_type": wallet.wallet_type,
+        "wallet_status": wallet.wallet_status,
+        "created_at": wallet.created_at,
+        "exists": True,
+        "description": wallet_descriptions.get(wallet.wallet_type, "")
+    } for wallet in wallet_details]
+
     return {
         "message": "Wallet details retrieved successfully",
         "user_type": check_user.user_type,
-        "wallet_details": [{
-            **wallet,
-            "description": wallet_descriptions.get(wallet["wallet_type"], "")
-        } for wallet in response_wallets]
+        "wallet_details": response_wallets
     }
 
 #admin can see all wallets of user
@@ -1021,4 +999,141 @@ async def distribute_fees(
             "manager_commission": manager_commission,
             "system_profit": system_profit
         }
+    }
+
+@router.get("/transactions/last-transaction")
+async def get_last_transaction(
+    user: user_dependency,
+    db: db_dependency,
+    account_id: str,
+    wallet_type: str = None  # Make wallet_type optional
+):
+    """Get the last transaction for a specific wallet or all wallets"""
+    if isinstance(user, HTTPException):
+        raise user
+
+    # Verify user has permission
+    check_user = db.query(Users).filter(Users.id == user['user_id']).first()
+    if not check_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Only allow users to view their own transactions unless they're admin/manager
+    if check_user.account_id != account_id and check_user.user_type not in ["admin", "manager"]:
+        raise HTTPException(status_code=403, detail="Not authorized to view these transactions")
+
+    # Base query
+    query = db.query(Transaction_history).filter(
+        Transaction_history.account_id == account_id
+    )
+
+    # Add wallet type filter if specified
+    if wallet_type:
+        query = query.filter(Transaction_history.wallet_type == wallet_type)
+
+    # Get last transaction for each wallet type
+    last_transactions = {}
+    
+    if wallet_type:
+        # Get single wallet's last transaction
+        last_transaction = query.order_by(Transaction_history.created_at.desc()).first()
+        if last_transaction:
+            last_transactions[wallet_type] = {
+                "id": last_transaction.id,
+                "amount": last_transaction.amount,
+                "original_amount": last_transaction.original_amount,
+                "original_currency": last_transaction.original_currency,
+                "transaction_type": last_transaction.transaction_type,
+                "wallet_type": last_transaction.wallet_type,
+                "created_at": last_transaction.created_at,
+                "status": last_transaction.status,
+                "done_by": last_transaction.done_by
+            }
+    else:
+        # Get last transaction for each wallet type
+        wallet_types = db.query(Transaction_history.wallet_type).filter(
+            Transaction_history.account_id == account_id
+        ).distinct().all()
+        
+        for wt in wallet_types:
+            last_tx = query.filter(
+                Transaction_history.wallet_type == wt[0]
+            ).order_by(Transaction_history.created_at.desc()).first()
+            
+            if last_tx:
+                last_transactions[wt[0]] = {
+                    "id": last_tx.id,
+                    "amount": last_tx.amount,
+                    "original_amount": last_tx.original_amount,
+                    "original_currency": last_tx.original_currency,
+                    "transaction_type": last_tx.transaction_type,
+                    "wallet_type": last_tx.wallet_type,
+                    "created_at": last_tx.created_at,
+                    "status": last_tx.status,
+                    "done_by": last_tx.done_by
+                }
+
+    return {
+        "message": "Last transactions retrieved successfully",
+        "transactions": last_transactions
+    }
+
+@router.get("/transactions/all")
+async def get_all_transactions(
+    user: user_dependency,
+    db: db_dependency,
+    account_id: str,
+    wallet_type: str = None,  # Make wallet_type optional
+    skip: int = 0,
+    limit: int = 10
+):
+    """Get all transactions for specific wallet or all wallets with pagination"""
+    if isinstance(user, HTTPException):
+        raise user
+
+    # Verify user has permission
+    check_user = db.query(Users).filter(Users.id == user['user_id']).first()
+    if not check_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Only allow users to view their own transactions unless they're admin/manager
+    if check_user.account_id != account_id and check_user.user_type not in ["admin", "manager"]:
+        raise HTTPException(status_code=403, detail="Not authorized to view these transactions")
+
+    # Base query
+    query = db.query(Transaction_history).filter(
+        Transaction_history.account_id == account_id
+    )
+
+    # Add wallet type filter if specified
+    if wallet_type:
+        query = query.filter(Transaction_history.wallet_type == wallet_type)
+
+    # Get total count for pagination
+    total_count = query.count()
+
+    # Get transactions with pagination
+    transactions = query.order_by(
+        Transaction_history.created_at.desc()
+    ).offset(skip).limit(limit).all()
+
+    # Format the response
+    transaction_list = [{
+        "id": tx.id,
+        "amount": tx.amount,
+        "original_amount": tx.original_amount,
+        "original_currency": tx.original_currency,
+        "transaction_type": tx.transaction_type,
+        "wallet_type": tx.wallet_type,
+        "created_at": tx.created_at,
+        "status": tx.status,
+        "done_by": tx.done_by
+    } for tx in transactions]
+
+    return {
+        "message": "Transactions retrieved successfully",
+        "transactions": transaction_list,
+        "total": total_count,
+        "skip": skip,
+        "limit": limit,
+        "wallet_type": wallet_type or "all"
     }

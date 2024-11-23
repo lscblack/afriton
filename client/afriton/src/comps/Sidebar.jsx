@@ -264,18 +264,19 @@ const Sidebar = ({ sidebarOpen, toggleSidebar, handleLogout}) => {
         {/* <button className="w-full max-md:hidden bg-amber-600 hover:bg-amber-700 text-white rounded-lg p-3 mb-6 flex items-center gap-2">
           AI Assistant <MagnetIcon size={20} />
         </button> */}
+        
         <div className="flex justify-between items-center gap-4">
-        <h2 className='dark:text-white  text-xl font-bold capitalize p-3'>Menu</h2>
+        <h2 className='dark:text-white text-xl font-bold capitalize p-3'>Menu</h2>
         <button className=" bg-amber-600 top-2 lg:hidden block rounded-full p-1 right-3" onClick={toggleSidebar}>
           <ArrowLeftRight className="text-gray-50" />
         </button>
         </div>
 
-        <nav className="space-y-2 overflow-auto  pb-[200px] pl-4">
+        <nav className="space-y-2 overflow-auto  pb-[200px] pl-4 dark:text-white">
           {links.map(({ icon, label, details, viewpanelS }) => (
             <div key={label} className="group">
               <a
-                onClick={()=>setViewPanel(viewpanelS)}
+                onClick={() => setViewPanel(viewpanelS)}
                 className="flex items-center gap-3 p-3 text-gray-700 dark:text-slate-200 text-sm hover:bg-amber-50 hover:dark:bg-black rounded-lg"
               >
                 {icon}

@@ -12,6 +12,7 @@ class ReturnUser(BaseModel):
     user_type: Optional[str] = None
     email: Optional[EmailStr] = None
     password: Optional[str] = None
+    account_id: Optional[str] = None
     acc_status: Optional[bool] = False
     is_wallet_active: Optional[bool] = False
     class Config:

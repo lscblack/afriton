@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff, Wallet, User, Users, Brain, Plus, Loader2, Clock } from 'lucide-react';
+import { Eye, EyeOff, Wallet, User, Users, Brain, Plus, Loader2, Clock, Building2, Shield } from 'lucide-react';
 import axios from 'axios';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../../context/AppContext';
 
-const WalletCards = () => {
+const CitizineCount = () => {
   const { userInfo } = useApp();
   const [showAllNumbers, setShowAllNumbers] = useState(false);
   const [selectedCard, setSelectedCard] = useState(null);
@@ -13,6 +13,7 @@ const WalletCards = () => {
   const [activatingWallet, setActivatingWallet] = useState(false);
   const [selectedWalletType, setSelectedWalletType] = useState('');
   const [transactions, setTransactions] = useState({});
+  const [data, setData] = useState([]);
 
   const walletTypes = [
     { value: 'savings', label: 'Savings Wallet', description: 'For your personal savings and daily transactions' },
@@ -31,7 +32,7 @@ const WalletCards = () => {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(
-        `${import.meta.env.VITE_API_URL}/transactions/last-transaction?account_id=${accountId}&wallet_type=${walletType}`,
+        `${import.meta.env.VITE_API_URL}/wallet/transactions/last-transaction?account_id=${accountId}&wallet_type=${walletType}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -87,7 +88,7 @@ const WalletCards = () => {
       );
 
       const walletDetails = response.data?.wallet_details || [];
-      
+      console.log(walletDetails);
       // Fetch last transaction for each wallet
       const transactionPromises = walletDetails.map(wallet => 
         fetchLastTransaction(wallet.account_id, wallet.wallet_type)
@@ -95,9 +96,12 @@ const WalletCards = () => {
       const transactions = await Promise.all(transactionPromises);
       
       const transformedWallets = walletDetails.map((wallet, index) => {
+        // Safely handle wallet type
+        const walletType = wallet.wallet_type || 'savings';
+        
         const typeConfig = {
           savings: {
-            type: 'Saving',
+            type: 'Savings',
             gradient: 'from-blue-600 to-blue-800',
             iconBg: 'bg-blue-500',
             icon: Wallet
@@ -108,31 +112,50 @@ const WalletCards = () => {
             iconBg: 'bg-purple-500',
             icon: Users
           },
-          business: {
-            type: 'Business',
+          "manager-wallet": {
+            type: 'Manager Wallet',
             gradient: 'from-green-600 to-green-800',
             iconBg: 'bg-green-500',
             icon: Brain
           },
-          emergency: {
-            type: 'agent-wallet',
+          "agent-wallet": {
+            type: 'Agent Wallet',
             gradient: 'from-red-600 to-red-800',
             iconBg: 'bg-red-500',
             icon: User
+          },
+          "goal": {
+            type: 'Manager Wallet',
+            gradient: 'from-green-600 to-green-800',
+            iconBg: 'bg-green-500',
+            icon: Brain
+          },
+          business: {
+            type: 'Business',
+            gradient: 'from-yellow-600 to-yellow-800',
+            iconBg: 'bg-yellow-500',
+            icon: Building2
+          },
+          emergency: {
+            type: 'Emergency',
+            gradient: 'from-orange-600 to-orange-800',
+            iconBg: 'bg-orange-500',
+            icon: Shield
           }
         };
 
-        const config = typeConfig[wallet.wallet_type] || typeConfig.savings;
+        // Get config or use default savings config
+        const config = typeConfig[walletType] || typeConfig.savings;
         const lastTransaction = transactions[index];
 
         return {
           ...config,
           balance: wallet.balance || 0,
-          accountNumber: wallet.account_id,
+          accountNumber: wallet.account_id || '',
           lastTransaction: lastTransaction ? new Date(lastTransaction.created_at).toLocaleString() : 'No transactions',
           lastTransactionAmount: lastTransaction?.amount || 0,
           owner: wallet.owner_name || userInfo?.fname || 'You',
-          wallet_type: wallet.wallet_type
+          wallet_type: walletType // Use the safely handled wallet type
         };
       });
 
@@ -312,11 +335,11 @@ const WalletCards = () => {
                         : '•••• •••• •••• ' + wallet.accountNumber.slice(-4)}
                     </div>
                     <div className="flex justify-between items-center">
-                      <h3 className="text-xl font-semibold text-white flex items-center gap-2">
+                      <h3 className="text-xl font-semibold capitalize text-white flex items-center gap-2">
                         <div className={`${wallet.iconBg} p-2 rounded-lg shadow-lg`}>
                           <wallet.icon className="text-white" size={24} />
                         </div>
-                        {wallet.type}
+                        {wallet.wallet_type}
                       </h3>
                       <span className="text-yellow-300 text-2xl">₳</span>
                     </div>
@@ -360,4 +383,4 @@ const WalletCards = () => {
   );
 };
 
-export default WalletCards;
+export default CitizineCount;

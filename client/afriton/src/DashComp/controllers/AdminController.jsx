@@ -1,7 +1,7 @@
 import React from 'react'
 import { useApp } from '../../context/AppContext';
-import { AdminMainBodyStart } from '../AdminMainBodyStart';
-import { AdminCount } from '../AdminCount';
+import { AdminMainBodyStart } from '../sharedComps/AdminMainBodyStart';
+import { AdminCount } from '../sharedComps/AdminCount';
 
 export const AdminController = () => {
   const { userInfo,viewUser, setViewUser,viewPanel, setViewPanel } = useApp();

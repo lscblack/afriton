@@ -46,21 +46,21 @@ const Dashboard = () => {
     window.location.href = '/login';
   };
   return (
-    <div className=" bg-gray-50  dark:bg-[#08030e]">
+    <div className=" bg-gray-50  dark:bg-[#08030e] h-[98vh] overflow-hidden">
       {/* Header */}
       <TopNavBar profileOpen={profileOpen} setProfileOpen={setProfileOpen} toggleSidebar={toggleSidebar} handleLogout={handleLogout} notificationsOpen={notificationsOpen} setNotificationsOpen={setNotificationsOpen} />
 
-      <div className="flex relative overflow-auto">
+      <div className="flex relative">
         {/* Overlay for mobile sidebar */}
         {sidebarOpen && (
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
-            onClick={toggleSidebar}
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          onClick={toggleSidebar}
           />
         )}
+        <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} toggleSidebar={toggleSidebar} handleLogout={handleLogout} />
 
         {/** Sidebar imports */}
-        <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} toggleSidebar={toggleSidebar} handleLogout={handleLogout} />
         {/* Main Content */}
         {/* ... (rest of the main content remains the same) ... */}
         {/* Main Content */}

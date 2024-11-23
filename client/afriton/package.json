@@ -32,7 +32,8 @@
     "react-router-dom": "^6.27.0",
     "react-toastify": "^10.0.6",
     "recharts": "^2.13.3",
-    "tailwind-merge": "^2.5.4"
+    "tailwind-merge": "^2.5.4",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.14.0",

@@ -1,12 +1,13 @@
 import React from 'react'
 import { useApp } from '../../context/AppContext';
-import WalletCards from '../CitizineCount.jsx';
+import { HomePage } from '../citizine/HomePage';
+
 
 export const CitizenController = () => {
   const { userInfo,viewUser, setViewUser,viewPanel, setViewPanel } = useApp();
   return (
     <>
-    {viewPanel == "dashboard" && <WalletCards />}
+    {viewPanel == "dashboard" && <HomePage />}
     </>
   )
 }
