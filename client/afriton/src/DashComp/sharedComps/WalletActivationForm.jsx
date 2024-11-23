@@ -125,7 +125,7 @@ const WalletActivationForm = () => {
   }
 
   return (
-    <div className="min-h-screen p-4 sm:p-6 md:p-8 bg-gray-50 dark:bg-[#0c0a1f]">
+    <div className="min-h-screen p-4 sm:p-6 md:p-8 ">
       <div className=" mx-auto">
         <div className="relative overflow-hidden rounded-2xl bg-white dark:bg-gray-800 shadow-xl">
           <div className="absolute inset-0 bg-grid-gray-100/5 [mask-image:linear-gradient(0deg,white,rgba(255,255,255,0.6))] dark:[mask-image:linear-gradient(0deg,black,rgba(0,0,0,0.6))]" />
@@ -210,8 +210,8 @@ const WalletActivationForm = () => {
                             : 'border-transparent scale-100 opacity-0'
                         }`} />
                         {isActivated && (
-                          <div className="absolute inset-0 flex items-center bg-gray-200/80 justify-center bg-black/10 rounded-xl">
-                            <span className="text-sm font-bold text-red-600 dark:text-gray-300">
+                          <div className="absolute inset-0 flex items-center bg-gray-200/80 justify-center dark:bg-black/80 rounded-xl">
+                            <span className="text-sm font-bold text-red-600 dark:text-white">
                               Already Activated
                             </span>
                           </div>
