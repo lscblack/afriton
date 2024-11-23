@@ -112,66 +112,70 @@ async def create_withdrawal_request(
     user: user_dependency,
     db: db_dependency,
     amount: float,
-    currency: str,
-    withdrawal_currency: str,  # Currency user wants to receive
+    account_id: str,
+    withdrawal_currency: str,
     wallet_type: Literal["savings", "goal", "business", "family", "emergency", "agent-wallet", "manager-wallet"]
 ):
     """Create a withdrawal request with currency conversion"""
     if isinstance(user, HTTPException):
         raise user
 
-    # Get user details
-    check_user = db.query(Users).filter(Users.id == user['user_id']).first()
+    # Verify the user making the request is an agent or manager
+    requester = db.query(Users).filter(
+        Users.id == user['user_id'],
+        Users.user_type.in_(["agent", "manager"])
+    ).first()
+    if not requester:
+        raise HTTPException(status_code=403, detail="Only agents or managers can create withdrawal requests")
+
+    # Get user details for the account requesting withdrawal
+    check_user = db.query(Users).filter(Users.account_id == account_id).first()
     if not check_user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Convert input amount to Afriton
-    try:
-        afriton_amount = convert_to_afriton(amount, currency, db)
-    except HTTPException as e:
-        raise e
-
-    # Convert Afriton to withdrawal currency
-    try:
-        withdrawal_amount = convert_from_afriton(afriton_amount, withdrawal_currency, db)
-    except HTTPException as e:
-        raise e
-
     # Get wallet
     wallet = db.query(Wallet).filter(
-        Wallet.account_id == check_user.account_id,
+        Wallet.account_id == account_id,
         Wallet.wallet_type == wallet_type
     ).first()
 
     if not wallet:
         raise HTTPException(status_code=404, detail="Wallet not found")
 
-    if afriton_amount > wallet.balance:
-        raise HTTPException(status_code=400, detail="Insufficient balance")
-
-    if afriton_amount < 5:  # Minimum withdrawal amount
-        raise HTTPException(status_code=400, detail="Minimum withdrawal amount is 5 Afriton")
-
     # Calculate fees (5% total)
-    total_fee_afriton = afriton_amount * 0.05
-    agent_commission = afriton_amount * 0.03
-    afriton_commission = afriton_amount * 0.02
+    total_fee_afriton = amount * 0.05
+    agent_commission = amount * 0.03
+    afriton_commission = amount * 0.02
 
-    # Convert fees to withdrawal currency
-    total_fee_withdrawal = convert_from_afriton(total_fee_afriton, withdrawal_currency, db)
-    net_amount_withdrawal = withdrawal_amount - total_fee_withdrawal
+    # Total amount needed (withdrawal amount + fees)
+    total_amount_needed = amount + total_fee_afriton
+
+    # Check if wallet has sufficient balance for amount + fees
+    if total_amount_needed > wallet.balance:
+        raise HTTPException(status_code=400, detail=f"Insufficient balance. Need {total_amount_needed} Afriton (including 5% fees)")
+
+    if amount < 1:  # Minimum withdrawal amount
+        raise HTTPException(status_code=400, detail="Minimum withdrawal amount is 1 Afriton")
+    
+    # Convert amounts to withdrawal currency
+    try:
+        withdrawal_amount = convert_from_afriton(amount, withdrawal_currency, db)  # Full amount user will receive
+        fee_in_withdrawal_currency = convert_from_afriton(total_fee_afriton, withdrawal_currency, db)
+    except HTTPException as e:
+        raise e
 
     # Create withdrawal request
     withdrawal = Withdrawal_request(
-        account_id=check_user.account_id,
-        amount=amount,
-        currency=currency,
-        converted_amount=afriton_amount,
-        withdrawal_amount=withdrawal_amount,
+        account_id=account_id,
+        amount=amount,  # Base amount in Afriton
+        withdrawal_amount=withdrawal_amount,  # Amount in withdrawal currency
         withdrawal_currency=withdrawal_currency,
         wallet_type=wallet_type,
         status="Pending",
-        request_to="agent"  # All withdrawal requests go to agents first
+        request_to="agent",
+        total_amount=total_amount_needed,  # Total including fees in Afriton
+        charges=total_fee_afriton,  # Fees in Afriton
+        done_by=str(user['user_id'])  # Add the done_by field
     )
     db.add(withdrawal)
     db.commit()
@@ -181,13 +185,12 @@ async def create_withdrawal_request(
     sub = "New Withdrawal Request"
     body = f"""
     <p>Hi {check_user.fname},</p>
-    <p>Your withdrawal request has been submitted:</p>
+    <p>A withdrawal request has been submitted on your behalf:</p>
     <ul>
-        <li>Original Amount: {amount} {currency}</li>
-        <li>Converted to Afriton: {afriton_amount} AFT</li>
-        <li>Withdrawal Amount: {withdrawal_amount} {withdrawal_currency}</li>
-        <li>Withdrawal Fee (5%): {total_fee_withdrawal} {withdrawal_currency}</li>
-        <li>Net Amount to Receive: {net_amount_withdrawal} {withdrawal_currency}</li>
+        <li>Amount to Receive: {withdrawal_amount} {withdrawal_currency}</li>
+        <li>Amount in Afriton: {amount} AFT</li>
+        <li>Service Fee (5%): {fee_in_withdrawal_currency} {withdrawal_currency}</li>
+        <li>Total Deduction from Wallet: {total_amount_needed} AFT</li>
         <li>Status: Pending</li>
     </ul>
     <p>Fee Breakdown:</p>
@@ -203,13 +206,11 @@ async def create_withdrawal_request(
     return {
         "message": "Withdrawal request submitted successfully",
         "request_details": {
-            "original_amount": amount,
-            "original_currency": currency,
-            "afriton_amount": afriton_amount,
-            "withdrawal_amount": withdrawal_amount,
+            "amount_to_receive": withdrawal_amount,
             "withdrawal_currency": withdrawal_currency,
-            "fee": total_fee_withdrawal,
-            "net_amount": net_amount_withdrawal,
+            "amount_afriton": amount,
+            "service_fee_afriton": total_fee_afriton,
+            "total_deduction": total_amount_needed,
             "fee_breakdown": {
                 "agent_commission": convert_from_afriton(agent_commission, withdrawal_currency, db),
                 "platform_fee": convert_from_afriton(afriton_commission, withdrawal_currency, db)
@@ -228,10 +229,14 @@ async def respond_withdrawal_request(
     if isinstance(user, HTTPException):
         raise user
 
+    # Get user's account_id from Users table
+    user_data = db.query(Users).filter(Users.id == user['user_id']).first()
+    if not user_data:
+        raise HTTPException(status_code=404, detail="User not found")
+
     # Validate user and fetch the withdrawal request
     request = db.query(Withdrawal_request).filter(
         Withdrawal_request.id == request_id,
-        Withdrawal_request.account_id == user['account_id'],
         Withdrawal_request.status == "Pending"
     ).first()
     if not request:
@@ -246,72 +251,133 @@ async def respond_withdrawal_request(
 
     if action == "Approve":
         # Check minimum withdrawal amount
-        if request.converted_amount < 1:
+        if request.amount < 1:
             raise HTTPException(status_code=400, detail="Minimum withdrawal amount is 1 Afriton")
 
-        # Calculate total charges (5%)
-        total_charges = request.converted_amount * 0.05
-        total_deduction = request.converted_amount + total_charges
-
         # Check if balance is sufficient to cover amount + charges
-        if wallet.balance < total_deduction:
+        if wallet.balance < request.total_amount:
             raise HTTPException(
                 status_code=400, 
-                detail=f"Insufficient balance. Total required (including 5% charges): {total_deduction} Afriton"
+                detail=f"Insufficient balance. Total required (including charges): {request.total_amount} Afriton"
             )
 
-        # Deduct balance (amount + charges) and create transaction history
-        wallet.balance -= total_deduction
+        # Deduct balance and create transaction history
+        wallet.balance -= request.total_amount
         transaction = Transaction_history(
             account_id=wallet.account_id,
-            amount=total_deduction,  # Record total deduction including charges
+            amount=-request.total_amount,  # Record total deduction including charges
             transaction_type="withdrawal",
             wallet_type=request.wallet_type,
-            done_by=user['user_id']
+            done_by=str(user['user_id'])
         )
         db.add(transaction)
         request.status = "Approved"
         request.processed_at = datetime.utcnow()
-    else:  # Reject
-        request.status = "Rejected"
-        request.processed_at = datetime.utcnow()
 
-    db.commit()
+        # Convert remaining balance to withdrawal currency for email
+        try:
+            remaining_balance_foreign = convert_from_afriton(wallet.balance - request.total_amount, 
+                                                          request.withdrawal_currency, 
+                                                          db)
+        except HTTPException as e:
+            raise e
 
-    # Email notifications
-    heading = "Withdrawal Request Update"
-    sub = f"Withdrawal Request {action}"
-    agent_body = f"""
-    <p>Hi {request.request_to.fname},</p>
-    <p>The withdrawal request of {request.converted_amount} Afriton from {request.wallet_type} wallet has been {action.lower()}ed.</p>
-    """
-    user_body = f"""
-    <p>Hi {user['fname']},</p>
-    <p>Your withdrawal request has been {action.lower()}ed.</p>
-    """
-    if action == "Approve":
-        user_body += f"""
+        # Email notifications
+        heading = "Withdrawal Request Update"
+        sub = f"Withdrawal Request {action}ed"
+        
+        # Get user details for email
+        user_details = db.query(Users).filter(Users.account_id == request.account_id).first()
+        
+        user_body = f"""
+        <p>Hi {user_details.fname},</p>
+        <p>Your withdrawal request has been {action.lower()}ed.</p>
         <p>Details:</p>
         <ul>
-            <li>Amount: {request.converted_amount} Afriton</li>
-            <li>Charges (5%): {total_charges} Afriton</li>
-            <li>Total Deducted: {total_deduction} Afriton</li>
-            <li>Remaining Balance: {wallet.balance} Afriton</li>
+            <li>Amount to Receive: {request.withdrawal_amount} {request.withdrawal_currency}</li>
+            <li>Amount in Afriton: {request.amount} AFT</li>
+            <li>Service Fee: {request.charges} AFT ({convert_from_afriton(request.charges, request.withdrawal_currency, db)} {request.withdrawal_currency})</li>
+            <li>Total Deducted: {request.total_amount} AFT ({convert_from_afriton(request.total_amount, request.withdrawal_currency, db)} {request.withdrawal_currency})</li>
+        </ul>
+        <p>Remaining Balance:</p>
+        <ul>
+            <li>In Afriton: {wallet.balance - request.total_amount} AFT</li>
+            <li>In {request.withdrawal_currency}: {remaining_balance_foreign} {request.withdrawal_currency}</li>
+        </ul>
+        """
+    else:
+        user_body = f"""
+        <p>Hi {user_details.fname},</p>
+        <p>Your withdrawal request has been rejected.</p>
+        <p>Details of rejected request:</p>
+        <ul>
+            <li>Amount Requested: {request.withdrawal_amount} {request.withdrawal_currency}</li>
+            <li>Amount in Afriton: {request.amount} AFT</li>
+            <li>Wallet Type: {request.wallet_type}</li>
+        </ul>
+        <p>Your wallet balance remains unchanged:</p>
+        <ul>
+            <li>In Afriton: {wallet.balance} AFT</li>
+            <li>In {request.withdrawal_currency}: {convert_from_afriton(wallet.balance, request.withdrawal_currency, db)} {request.withdrawal_currency}</li>
         </ul>
         """
 
-    # Send emails
-    send_new_email(request.request_to.email, sub, custom_email(request.request_to.fname, heading, agent_body))
-    send_new_email(user['email'], sub, custom_email(user['fname'], heading, user_body))
+    # Send email to user
+    send_new_email(user_details.email, sub, custom_email(user_details.fname, heading, user_body))
 
     return {
         "message": f"Withdrawal request {action.lower()}ed successfully",
         "status": action,
-        "amount": request.converted_amount,
-        "charges": total_charges if action == "Approve" else None,
-        "total_deducted": total_deduction if action == "Approve" else None,
-        "wallet_type": request.wallet_type,
-        "processed_at": request.processed_at
+        "details": {
+            "base_amount": {
+                "afriton": request.amount,
+                "foreign": {
+                    "amount": request.withdrawal_amount,
+                    "currency": request.withdrawal_currency
+                }
+            },
+            "fees": {
+                "total": {
+                    "afriton": request.charges,
+                    "foreign": {
+                        "amount": convert_from_afriton(request.charges, request.withdrawal_currency, db),
+                        "currency": request.withdrawal_currency
+                    }
+                },
+                "breakdown": {
+                    "agent_commission": {
+                        "afriton": request.charges * 0.6,
+                        "foreign": {
+                            "amount": convert_from_afriton(request.charges * 0.6, request.withdrawal_currency, db),
+                            "currency": request.withdrawal_currency
+                        }
+                    },
+                    "platform_fee": {
+                        "afriton": request.charges * 0.4,
+                        "foreign": {
+                            "amount": convert_from_afriton(request.charges * 0.4, request.withdrawal_currency, db),
+                            "currency": request.withdrawal_currency
+                        }
+                    }
+                }
+            },
+            "total_deducted": {
+                "afriton": request.total_amount,
+                "foreign": {
+                    "amount": convert_from_afriton(request.total_amount, request.withdrawal_currency, db),
+                    "currency": request.withdrawal_currency
+                }
+            },
+            "remaining_balance": {
+                "afriton": wallet.balance - request.total_amount if action == "Approve" else wallet.balance,
+                "foreign": {
+                    "amount": remaining_balance_foreign if action == "Approve" else convert_from_afriton(wallet.balance, request.withdrawal_currency, db),
+                    "currency": request.withdrawal_currency
+                }
+            },
+            "wallet_type": request.wallet_type,
+            "processed_at": request.processed_at
+        }
     }
 
 # deposit money to wallet
@@ -694,4 +760,109 @@ async def transfer_money(
             "from_wallet": from_wallet_type,
             "new_balance": sender_wallet.balance
         }
+    }
+
+@router.get("/my-withdrawal-requests")
+async def get_my_withdrawal_requests(
+    user: user_dependency,
+    db: db_dependency,
+    skip: int = 0,
+    limit: int = 100
+):
+    """Get all withdrawal requests for the authenticated user"""
+    if isinstance(user, HTTPException):
+        raise user
+
+    # Get user details
+    check_user = db.query(Users).filter(Users.id == user['user_id']).first()
+    if not check_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Get all withdrawal requests for this user
+    requests = db.query(Withdrawal_request).filter(
+        Withdrawal_request.account_id == check_user.account_id
+    ).order_by(
+        Withdrawal_request.created_at.desc()
+    ).offset(skip).limit(limit).all()
+
+    return {
+        "message": "Withdrawal requests retrieved successfully",
+        "total_requests": len(requests),
+        "requests": [{
+            "id": req.id,
+            "amount": req.amount,
+            "withdrawal_amount": req.withdrawal_amount,
+            "withdrawal_currency": req.withdrawal_currency,
+            "wallet_type": req.wallet_type,
+            "status": req.status,
+            "charges": req.charges,
+            "total_amount": req.total_amount,
+            "created_at": req.created_at,
+            "processed_at": req.processed_at
+        } for req in requests]
+    }
+
+@router.get("/created-withdrawal-requests")
+async def get_created_withdrawal_requests(
+    user: user_dependency,
+    db: db_dependency,
+    skip: int = 0,
+    limit: int = 100,
+    status: str = None  # Optional status filter
+):
+    """Get all withdrawal requests created by an agent or manager"""
+    if isinstance(user, HTTPException):
+        raise user
+
+    # Verify the user is an agent or manager
+    requester = db.query(Users).filter(
+        Users.id == user['user_id'],
+        Users.user_type.in_(["agent", "manager", "admin"])
+    ).first()
+    if not requester:
+        raise HTTPException(status_code=403, detail="Only agents or managers can access this endpoint")
+
+    # Build the base query
+    query = db.query(
+        Withdrawal_request,
+        Users.fname,
+        Users.lname,
+        Users.email
+    ).join(
+        Users,
+        Users.account_id == Withdrawal_request.account_id
+    )
+
+    # If user is not admin, filter by done_by
+    if requester.user_type != "admin":
+        query = query.filter(Withdrawal_request.done_by == str(user['user_id']))
+
+    # Add status filter if provided
+    if status:
+        query = query.filter(Withdrawal_request.status == status)
+
+    # Execute query with pagination
+    results = query.order_by(
+        Withdrawal_request.created_at.desc()
+    ).offset(skip).limit(limit).all()
+
+    return {
+        "message": "Withdrawal requests retrieved successfully",
+        "total_requests": len(results),
+        "requests": [{
+            "id": req.Withdrawal_request.id,
+            "user": {
+                "name": f"{req.fname} {req.lname}",
+                "email": req.email
+            },
+            "amount": req.Withdrawal_request.amount,
+            "withdrawal_amount": req.Withdrawal_request.withdrawal_amount,
+            "withdrawal_currency": req.Withdrawal_request.withdrawal_currency,
+            "wallet_type": req.Withdrawal_request.wallet_type,
+            "status": req.Withdrawal_request.status,
+            "charges": req.Withdrawal_request.charges,
+            "total_amount": req.Withdrawal_request.total_amount,
+            "created_at": req.Withdrawal_request.created_at,
+            "processed_at": req.Withdrawal_request.processed_at
+        } for req in results]
     }

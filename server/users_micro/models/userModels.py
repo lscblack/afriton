@@ -59,18 +59,21 @@ class Transaction_history(Base):
 
 #withdrawal table request
 class Withdrawal_request(Base):
-    __tablename__ ="Withdrawal_request"
+    __tablename__ = "withdrawal_requests"
+    
     id = Column(Integer, primary_key=True, index=True)
-    account_id = Column(String, index=True)
-    amount = Column(Float, default=0.0)
-    currency = Column(String(50), nullable=False)  # Original currency
-    converted_amount = Column(Float, default=0.0)  # Amount in Afriton
-    withdrawal_amount = Column(Float, default=0.0)  # Amount in withdrawal currency
-    withdrawal_currency = Column(String(50), nullable=False)  # Currency to receive
-    wallet_type = Column(String(50), nullable=False)
-    status = Column(String, default="Pending")
-    request_to = Column(String, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    account_id = Column(String)
+    amount = Column(Float)  # Base amount in Afriton
+    withdrawal_amount = Column(Float)  # Amount in withdrawal currency
+    withdrawal_currency = Column(String)
+    wallet_type = Column(String)
+    status = Column(String)
+    request_to = Column(String)
+    processed_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    done_by = Column(String, nullable=True)
+    total_amount = Column(Float)  # Total amount including fees in Afriton
+    charges = Column(Float)  # Fees in Afriton
 
 class Workers(Base):
     __tablename__ = "workers"
