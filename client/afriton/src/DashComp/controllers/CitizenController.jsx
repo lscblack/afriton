@@ -1,6 +1,7 @@
 import React from 'react'
 import { useApp } from '../../context/AppContext';
 import { HomePage } from '../citizine/HomePage';
+import WalletActivationForm from '../sharedComps/WalletActivationForm';
 
 
 export const CitizenController = () => {
@@ -8,6 +9,7 @@ export const CitizenController = () => {
   return (
     <>
     {viewPanel == "dashboard" && <HomePage />}
+    {viewPanel == "wallets" && <WalletActivationForm />}
     </>
   )
 }

@@ -366,11 +366,11 @@ async def create_token_for_google_signup(
         if isinstance(userFront, HTTPException):
             raise userFront
 
-        # if userFront['acc_type'] != "dev":
-        #     raise HTTPException(
-        #         status_code=403,
-        #         detail="Only Afriton apps are allowed!"
-        #     )
+        if userFront['acc_type'] != "dev":
+            raise HTTPException(
+                status_code=403,
+                detail="Only Afriton apps are allowed!"
+            )
 
         # Get email from request body
         email = data.get('email')

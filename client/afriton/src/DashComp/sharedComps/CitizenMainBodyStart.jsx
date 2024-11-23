@@ -105,6 +105,7 @@ const TransactionDashboard = () => {
         {
           params: {
             account_id: userInfo.account_id,
+            wallet_type: selectedWalletType,
             skip: 0,
             limit: 100
           },
@@ -128,7 +129,6 @@ const TransactionDashboard = () => {
         location: 'Transaction ID: ' + tx.id,
         category: tx.wallet_type
       }));
-      console.log(transformedTransactions)
 
       setRealTransactions(transformedTransactions);
       setFilteredTransactions(transformedTransactions);

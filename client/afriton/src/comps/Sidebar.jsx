@@ -2,7 +2,8 @@ import { useState } from 'react';
 import {
   Settings, Map, Users, PieChart, Building2, UserRound, ClipboardList,ChartArea,
    X, LogOut, 
-  ArrowLeftRight, Send, CreditCard, Shield, Wallet, 
+  ArrowLeftRight, Send, CreditCard, Shield, Wallet,
+  Wallet2Icon, 
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
@@ -42,6 +43,17 @@ const Sidebar = ({ sidebarOpen, toggleSidebar, handleLogout}) => {
           '24/7 banking access',
         ],
         viewpanelS: 'banking',
+      },
+      {
+        icon: <Wallet2Icon />,
+        label: 'Wallets',
+        details: [
+          'Create a new wallet',
+          'Activate your wallet',
+          'Manage your wallets',
+          'View your wallet balance',
+        ],
+        viewpanelS: 'wallets',
       },
       {
         icon: <PieChart />,

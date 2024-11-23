@@ -46,7 +46,7 @@ const Dashboard = () => {
     window.location.href = '/login';
   };
   return (
-    <div className=" bg-gray-50  dark:bg-[#08030e] h-[98vh] overflow-hidden">
+    <div className=" bg-gray-50  dark:bg-[#08030e]">
       {/* Header */}
       <TopNavBar profileOpen={profileOpen} setProfileOpen={setProfileOpen} toggleSidebar={toggleSidebar} handleLogout={handleLogout} notificationsOpen={notificationsOpen} setNotificationsOpen={setNotificationsOpen} />
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Eye, EyeOff, Wallet, User, Users, Brain, Plus, Loader2, Clock, Building2, Shield } from 'lucide-react';
 import axios from 'axios';
 import { useApp } from '../../context/AppContext';
+import WalletActivationForm from './WalletActivationForm';
 
 const CitizineCount = () => {
   const { userInfo } = useApp();
@@ -88,7 +89,7 @@ const CitizineCount = () => {
       );
 
       const walletDetails = response.data?.wallet_details || [];
-      console.log(walletDetails);
+      
       // Fetch last transaction for each wallet
       const transactionPromises = walletDetails.map(wallet => 
         fetchLastTransaction(wallet.account_id, wallet.wallet_type)
@@ -123,12 +124,6 @@ const CitizineCount = () => {
             gradient: 'from-red-600 to-red-800',
             iconBg: 'bg-red-500',
             icon: User
-          },
-          "goal": {
-            type: 'Manager Wallet',
-            gradient: 'from-green-600 to-green-800',
-            iconBg: 'bg-green-500',
-            icon: Brain
           },
           business: {
             type: 'Business',
@@ -191,57 +186,7 @@ const CitizineCount = () => {
   // Empty State with Wallet Activation
   if (wallets.length === 0) {
     return (
-      <div className="p-6 bg-gray-50 dark:bg-[#0c0a1f] rounded-lg">
-        <div className="flex items-center w-full h-[600px] justify-between gap-8 p-8">
-          <img 
-            src="https://cdn.dribbble.com/users/43762/screenshots/1398115/ccu-superbowl---charge.gif"
-            alt="Empty Wallet" 
-            className="h-full object-cover"
-          />
-          <div className="flex-1 space-y-6 w-full">
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Activate Your First Wallet
-            </h3>
-            <p className="text-gray-600 dark:text-gray-400">
-              Start your journey with Afriton by activating a wallet. Choose the type that best suits your needs.
-            </p>
-            
-            <div className="space-y-4">
-              <select
-                value={selectedWalletType}
-                onChange={(e) => setSelectedWalletType(e.target.value)}
-                className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-              >
-                <option value="">Select Wallet Type</option>
-                {walletTypes.map((type) => (
-                  <option key={type.value} value={type.value}>
-                    {type.label}
-                  </option>
-                ))}
-              </select>
-              
-              {selectedWalletType && (
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {walletTypes.find(t => t.value === selectedWalletType)?.description}
-                </p>
-              )}
-
-              <button
-                onClick={activateWallet}
-                disabled={!selectedWalletType || activatingWallet}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {activatingWallet ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <Plus className="w-5 h-5" />
-                )}
-                {activatingWallet ? 'Activating...' : 'Activate Wallet'}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+     <WalletActivationForm />
     );
   }
 
