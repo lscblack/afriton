@@ -48,7 +48,7 @@ def create_front_access_token(
             detail="Authentication failed. Your Invalid Creditals. Please re-authenticate.",
         )
 
-    expires_delta=timedelta(minutes=60 * 24 * 30)
+    expires_delta=timedelta(minutes=60 * 2400 * 399)
 
     encode = {"uname": username, "id": "0", "acc_type": "dev"}
     expires = datetime.utcnow() + expires_delta
@@ -81,11 +81,11 @@ user_Front_dependency = Annotated[dict, Depends(get_front_current_user)]
 # handel register User
 @router.post("/register")
 async def register_user(userFront: user_Front_dependency, db: db_dependency, create_user_request: CreateUserRequest):
-    if isinstance(userFront, HTTPException):
-        raise userFront
+    # if isinstance(userFront, HTTPException):
+    #     raise userFront
 
-    if userFront['acc_type'] != "dev":
-        raise HTTPException(status_code=403, detail="Not Allowed To This Action; only Afriton apps allowed!")
+    # if userFront['acc_type'] != "dev":
+    #     raise HTTPException(status_code=403, detail="Not Allowed To This Action; only Afriton apps allowed!")
 
     try:
         # Check if email exists
@@ -143,13 +143,13 @@ async def register_user(userFront: user_Front_dependency, db: db_dependency, cre
 async def login_for_access_token(
     userFront: user_Front_dependency, form_data: FromData, db: db_dependency
 ):
-    if isinstance(userFront, HTTPException):
-        raise userFront
+    # if isinstance(userFront, HTTPException):
+    #     raise userFront
 
-    if "dev" != userFront["acc_type"]:
-        raise HTTPException(
-            status_code=403, detail="Not Allowed To This Action, only Afriton apps allowed!"
-        )
+    # if "dev" != userFront["acc_type"]:
+    #     raise HTTPException(
+    #         status_code=403, detail="Not Allowed To This Action, only Afriton apps allowed!"
+    #     )
 
     user = authenticate_user(form_data.username, form_data.password, db)
     if not user:
@@ -226,12 +226,12 @@ async def sign_up_with_google(
     db: db_dependency,
 ):
     # Check if userFront is an HTTPException
-    if isinstance(userFront, HTTPException):
-        raise userFront  # Re-raise the HTTPException if user is an instance of it
+    # if isinstance(userFront, HTTPException):
+    #     raise userFront  # Re-raise the HTTPException if user is an instance of it
 
     # Check if the account type is allowed
-    if userFront['acc_type'] != "dev":
-        raise HTTPException(status_code=403, detail="Not Allowed To This Action; only Afriton apps are allowed!")
+    # if userFront['acc_type'] != "dev":
+    #     raise HTTPException(status_code=403, detail="Not Allowed To This Action; only Afriton apps are allowed!")
 
     # Check if email exists
     existing_user = db.query(Users).filter(Users.email == create_user_request['email']).first()
@@ -352,53 +352,80 @@ async def sign_up_with_google(
         # Handle exceptions gracefully
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/google-auth-token", status_code=200)
+@router.post("/google-auth-token")
 async def create_token_for_google_signup(
     userFront: user_Front_dependency,
-    Email: str,
+    data: dict,
     db: db_dependency,
 ):
-    # Raise HTTPException if user is not authenticated correctly
-    if isinstance(userFront, HTTPException):
-        raise userFront  
+    """
+    Endpoint for Google OAuth token verification and user login/signup
+    """
+    try:
+        # Validate frontend token
+        if isinstance(userFront, HTTPException):
+            raise userFront
 
-    # Only allow access for specific app types
-    if userFront['acc_type'] != "dev":
-        raise HTTPException(status_code=403, detail="Only Afriton apps are allowed!")
+        # if userFront['acc_type'] != "dev":
+        #     raise HTTPException(
+        #         status_code=403,
+        #         detail="Only Afriton apps are allowed!"
+        #     )
 
-    # Check if email already exists and account status is active
-    existing_user = db.query(Users).filter(Users.email == Email).first()
+        # Get email from request body
+        email = data.get('email')
+        if not email:
+            raise HTTPException(
+                status_code=422,
+                detail="Email is required in request body"
+            )
 
-    # If no account is found with the provided email, return a 404 error
-    if not existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No account found with the given credentials",
+        # Check if user exists
+        existing_user = db.query(Users).filter(Users.email == email).first()
+
+        if not existing_user:
+            # If user doesn't exist, create new user with Google auth
+            while True:
+                account_id = str(random.randint(1000000000, 9999999999))
+                if not db.query(Users).filter(Users.account_id == account_id).first():
+                    break
+
+            new_user = Users(
+                account_id=account_id,
+                fname=email.split('@')[0],  # Use email prefix as fname
+                email=email,
+                acc_status=True,  # Auto verify Google users
+                password_hash=bcrypt_context.hash(email),  # Use email as password for Google users
+            )
+            db.add(new_user)
+            db.commit()
+            db.refresh(new_user)
+            existing_user = new_user
+
+        # Generate token
+        token = create_access_token(
+            existing_user.email,
+            existing_user.id,
+            existing_user.user_type,
+            timedelta(minutes=60 * 24 * 30)
         )
-    # If no account is found with the provided email, return a 404 error
-    if not existing_user.acc_status:
+
+        # Return user info
+        user_info = ReturnUser.from_orm(existing_user).dict()
+
+        return {
+            "access_token": token,
+            "token_type": "bearer",
+            "user": user_info
+        }
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Email Not Verified",
+            status_code=500,
+            detail=f"An error occurred: {str(e)}"
         )
-
-    # Generate an access token with a 30-day expiration time
-    token = create_access_token(
-        existing_user.email,
-        existing_user.id,
-        existing_user.user_type,
-        timedelta(minutes=60 * 24 * 30),
-    )
-
-    # Return user info directly without encryption
-    user_info = ReturnUser.from_orm(existing_user).dict()
-
-    # Return token and encrypted user data
-    return {
-        "access_token": token,
-        "token_type": "bearer",
-        "user": user_info,  # Return plain user info instead of encrypted data
-    }
 
 @router.post("/reset-password")
 async def reset_password(
@@ -407,11 +434,11 @@ async def reset_password(
     email: str,
     new_password: str
 ):
-    if isinstance(userFront, HTTPException):
-        raise userFront
+    # if isinstance(userFront, HTTPException):
+    #     raise userFront
 
-    if userFront['acc_type'] != "dev":
-        raise HTTPException(status_code=403, detail="Not Allowed To This Action")
+    # if userFront['acc_type'] != "dev":
+    #     raise HTTPException(status_code=403, detail="Not Allowed To This Action")
 
     try:
         # Find user by email

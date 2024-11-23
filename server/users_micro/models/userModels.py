@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String,Text, Boolean, Float, Date, Forei
 from db.database import Base
 from datetime import date
 from datetime import datetime
+from sqlalchemy.orm import relationship
 
 class Users(Base):
     __tablename__ = "users"
@@ -88,11 +89,12 @@ class Workers(Base):
 
 class Profit(Base):
     __tablename__ = "profits"
+
     id = Column(Integer, primary_key=True, index=True)
-    amount = Column(Float, default=0.0)
-    transaction_type = Column(String(50))  # withdrawal, deposit
-    currency = Column(String(50))
-    created_at = Column(DateTime, default=datetime.utcnow)
+    amount = Column(Float, nullable=False)  # System profit amount
+    fee_type = Column(String, nullable=False)  # withdrawal or deposit
+    transaction_amount = Column(Float, nullable=False)  # Original transaction amount
+    transaction_date = Column(DateTime, default=datetime.utcnow)
 
 class CurrencyCategory(Base):
     __tablename__ = "currency_categories"

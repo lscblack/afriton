@@ -239,8 +239,9 @@ def change_user_type(
         managed_by=check_user.id if user_type == "agent" else None
     )
     
-    # Update user type
+    # Update user type and activate wallet
     user_to_change.user_type = user_type
+    user_to_change.is_wallet_active = True  # Set wallet active when changing role
     
     # Create commission wallet for the new agent/manager
     commission_wallet = Wallet(

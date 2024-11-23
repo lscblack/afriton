@@ -265,7 +265,7 @@ const Sidebar = ({ sidebarOpen, toggleSidebar, handleLogout}) => {
           AI Assistant <MagnetIcon size={20} />
         </button> */}
         <div className="flex justify-between items-center gap-4">
-        <h2 className='text-white text-xl font-bold capitalize p-3'>Menu</h2>
+        <h2 className='dark:text-white  text-xl font-bold capitalize p-3'>Menu</h2>
         <button className=" bg-amber-600 top-2 lg:hidden block rounded-full p-1 right-3" onClick={toggleSidebar}>
           <ArrowLeftRight className="text-gray-50" />
         </button>

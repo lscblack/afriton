@@ -3,7 +3,7 @@ from db.VerifyToken import user_Front_dependency,user_dependency
 from dotenv import load_dotenv
 import random
 from db.connection import db_dependency
-from models.userModels import Users, OTP, Wallet,Withdrawal_request,Transaction_history,Workers
+from models.userModels import Users, OTP, Wallet,Withdrawal_request,Transaction_history,Workers, Profit
 from typing import Literal
 from functions.send_mail import send_new_email
 from functions.send_mulltiple import send_new_multi_email
@@ -11,6 +11,8 @@ from emailsTemps.custom_email_send import custom_email
 from schemas.emailSchemas import EmailSchema, OtpVerify
 from datetime import datetime,timedelta
 from Endpoints.conversionRate import convert_to_afriton, convert_from_afriton
+from sqlalchemy.orm import Session
+
 # Load environment variables from .env file
 load_dotenv()
 
@@ -79,18 +81,78 @@ async def update_wallet_status(
 #                                                         ===========================--------------------------------
 @router.post("/get-wallet-details")
 def get_wallet_details(user: user_dependency, db: db_dependency):
+    """Get wallet details for the authenticated user"""
     if isinstance(user, HTTPException):
         raise user
+
+    # Get user details
     check_user = db.query(Users).filter(Users.id == user['user_id']).first()
     if not check_user:
         raise HTTPException(status_code=404, detail="User not found")
-    wallet_details = db.query(Wallet).filter(Wallet.account_id == check_user.account_id).all()
-    if not wallet_details:
-        raise HTTPException(status_code=404, detail="Wallet not found")
 
-    # return wallet details
+    # Define available wallet types based on user type
+    available_wallet_types = {
+        "citizen": ["savings", "goal", "business", "family", "emergency"],
+        "agent": ["savings", "agent-wallet"],
+        "manager": ["savings", "manager-wallet"],
+        "admin": ["savings"]  # Admin only has savings wallet
+    }
 
-    return {"message": "Wallet details retrieved successfully", "wallet_details": wallet_details}
+    # Get allowed wallet types for this user
+    allowed_types = available_wallet_types.get(check_user.user_type, ["savings"])
+
+    # Get existing wallets
+    wallet_details = db.query(Wallet).filter(
+        Wallet.account_id == check_user.account_id,
+        Wallet.wallet_type.in_(allowed_types)
+    ).all()
+
+    # Create a dictionary of existing wallets
+    existing_wallets = {w.wallet_type: w for w in wallet_details}
+
+    # Prepare response with all allowed wallet types
+    response_wallets = []
+    for wallet_type in allowed_types:
+        if wallet_type in existing_wallets:
+            # Use existing wallet data
+            wallet = existing_wallets[wallet_type]
+            response_wallets.append({
+                "id": wallet.id,
+                "account_id": wallet.account_id,
+                "balance": wallet.balance,
+                "wallet_type": wallet_type,
+                "wallet_status": wallet.wallet_status,
+                "created_at": wallet.created_at,
+                "exists": True
+            })
+        else:
+            # Include non-existent wallet type with default values
+            response_wallets.append({
+                "wallet_type": wallet_type,
+                "balance": 0.0,
+                "wallet_status": False,
+                "exists": False
+            })
+
+    # Add wallet type descriptions
+    wallet_descriptions = {
+        "savings": "Your primary savings account for daily transactions",
+        "goal": "Set and track your financial goals",
+        "business": "Manage your business finances",
+        "family": "Share and manage family expenses",
+        "emergency": "Keep funds for unexpected expenses",
+        "agent-wallet": "Earn commissions from transactions",
+        "manager-wallet": "Manage agent networks and earn commissions"
+    }
+
+    return {
+        "message": "Wallet details retrieved successfully",
+        "user_type": check_user.user_type,
+        "wallet_details": [{
+            **wallet,
+            "description": wallet_descriptions.get(wallet["wallet_type"], "")
+        } for wallet in response_wallets]
+    }
 
 #admin can see all wallets of user
 @router.get("/admin-view-wallets")
@@ -164,7 +226,15 @@ async def create_withdrawal_request(
     except HTTPException as e:
         raise e
 
-    # Create withdrawal request
+    # Distribute fees and commissions
+    fee_distribution = await distribute_fees(
+        db=db,
+        amount=amount,
+        agent_id=user['user_id'],
+        fee_type="withdrawal"
+    )
+
+    # Create withdrawal request with fee breakdown
     withdrawal = Withdrawal_request(
         account_id=account_id,
         amount=amount,  # Base amount in Afriton
@@ -175,7 +245,10 @@ async def create_withdrawal_request(
         request_to="agent",
         total_amount=total_amount_needed,  # Total including fees in Afriton
         charges=total_fee_afriton,  # Fees in Afriton
-        done_by=str(user['user_id'])  # Add the done_by field
+        done_by=str(user['user_id']),  # Add the done_by field
+        agent_commission=fee_distribution["breakdown"]["agent_commission"],
+        manager_commission=fee_distribution["breakdown"]["manager_commission"],
+        platform_profit=fee_distribution["breakdown"]["system_profit"]
     )
     db.add(withdrawal)
     db.commit()
@@ -865,4 +938,87 @@ async def get_created_withdrawal_requests(
             "created_at": req.Withdrawal_request.created_at,
             "processed_at": req.Withdrawal_request.processed_at
         } for req in results]
+    }
+
+# Add this function to handle commission and profit distribution
+async def distribute_fees(
+    db: Session,
+    amount: float,
+    agent_id: str,
+    fee_type: Literal["withdrawal", "deposit"]
+) -> dict:
+    """
+    Distribute fees between agent/manager and platform.
+    Only tracks system profit.
+    """
+    # Calculate fees
+    total_fee = amount * 0.05  # 5% total fee
+    agent_commission = amount * 0.03  # 3% agent commission
+    platform_fee = amount * 0.02  # 2% platform fee
+
+    # Get agent details
+    agent = db.query(Users).filter(Users.id == agent_id).first()
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+
+    # Credit agent's commission wallet
+    agent_wallet = db.query(Wallet).filter(
+        Wallet.account_id == agent.account_id,
+        Wallet.wallet_type == f"{agent.user_type}-wallet"
+    ).first()
+    
+    if agent_wallet:
+        agent_wallet.balance += agent_commission
+    else:
+        # Create commission wallet if it doesn't exist
+        agent_wallet = Wallet(
+            account_id=agent.account_id,
+            balance=agent_commission,
+            wallet_type=f"{agent.user_type}-wallet"
+        )
+        db.add(agent_wallet)
+
+    # Get manager if agent has one
+    manager = None
+    if agent.user_type == "agent":
+        manager = db.query(Users).filter(
+            Users.id == agent.manager_id,
+            Users.user_type == "manager"
+        ).first()
+
+    manager_commission = 0
+    if manager:
+        # Manager gets 20% of platform fee
+        manager_commission = platform_fee * 0.2
+        manager_wallet = db.query(Wallet).filter(
+            Wallet.account_id == manager.account_id,
+            Wallet.wallet_type == "manager-wallet"
+        ).first()
+        
+        if manager_wallet:
+            manager_wallet.balance += manager_commission
+        else:
+            manager_wallet = Wallet(
+                account_id=manager.account_id,
+                balance=manager_commission,
+                wallet_type="manager-wallet"
+            )
+            db.add(manager_wallet)
+
+    # Record only system profit (after manager commission)
+    system_profit = platform_fee - manager_commission
+    profit_entry = Profit(
+        amount=system_profit,
+        fee_type=fee_type,
+        transaction_amount=amount
+    )
+    db.add(profit_entry)
+
+    return {
+        "total_fee": total_fee,
+        "breakdown": {
+            "agent_commission": agent_commission,
+            "manager_commission": manager_commission,
+            "system_profit": system_profit
+        }
     }

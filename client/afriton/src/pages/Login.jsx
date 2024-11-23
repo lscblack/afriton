@@ -62,7 +62,7 @@ const LoginForm = () => {
     const getAccessToken = async () => {
       try {
         if (apiToken) {
-          return;
+          // return;
         }
 
         const response = await axios.post(
@@ -139,6 +139,7 @@ const LoginForm = () => {
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Invalid credentials');
       setShowLoginForm(true);
+      localStorage.setItem('apiToken');
     } finally {
       setLoading(false);
     }
@@ -250,26 +251,58 @@ const LoginForm = () => {
       setIsGoogleLoading(true);
 
       const userObj = jwtDecode(response.credential);
-      const googleResponse = await axios.post(
-        `${import.meta.env.VITE_API_URL}/auth/google-auth-token?Email=${userObj.email}`,
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${apiToken}`
+      
+      // First try to get token for existing user
+      try {
+        const googleResponse = await axios.post(
+          `${import.meta.env.VITE_API_URL}/auth/google-auth-token`,
+          { email: userObj.email },
+          {
+            headers: {
+              'Authorization': `Bearer ${apiToken}`,
+              'Content-Type': 'application/json'
+            }
           }
-        }
-      );
+        );
 
-      if (googleResponse.data) {
-        // Store auth data
-        localStorage.setItem('token', googleResponse.data.access_token);
-        localStorage.setItem('userInfo', JSON.stringify(googleResponse.data));
-        // Update context
-        setUserData(googleResponse.data.user);
-        
-        toast.success('Login successful!');
-        window.location.href= '/dashboard';
-        // console.log(googleResponse.data)
+        if (googleResponse.data) {
+          localStorage.setItem('token', googleResponse.data.access_token);
+          localStorage.setItem('userInfo', JSON.stringify(googleResponse.data));
+          setUserData(googleResponse.data.user);
+          
+          toast.success('Login successful!');
+          window.location.href = '/dashboard';
+        }
+      } catch (error) {
+        // If user doesn't exist, create new account
+        if (error.response?.status === 404) {
+          const signupResponse = await axios.post(
+            `${import.meta.env.VITE_API_URL}/auth/google-auth`,
+            {
+              email: userObj.email,
+              fname: userObj.given_name || userObj.email.split('@')[0],
+              lname: userObj.family_name || '',
+              avatar: userObj.picture || ''
+            },
+            {
+              headers: {
+                'Authorization': `Bearer ${apiToken}`,
+                'Content-Type': 'application/json'
+              }
+            }
+          );
+
+          if (signupResponse.data) {
+            localStorage.setItem('token', signupResponse.data.access_token);
+            localStorage.setItem('userInfo', JSON.stringify(signupResponse.data));
+            setUserData(signupResponse.data.user);
+            
+            toast.success('Account created successfully!');
+            window.location.href = '/dashboard';
+          }
+        } else {
+          throw error;
+        }
       }
     } catch (error) {
       const errorMessage = error.response?.data?.detail || 'Failed to authenticate with Google';
