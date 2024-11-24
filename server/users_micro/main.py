@@ -18,7 +18,7 @@ app = FastAPI(
 # Configure CORS 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Add your frontend URL
+    allow_origins=["http://localhost:5173","http://localhost:3000","https://afriton.netlify.app"],  # Add your frontend URL
     allow_credentials=True,
     allow_methods=["*"],  # Adjust this to the specific methods you want to allow (e.g., ["GET", "POST"])
     allow_headers=["*"],  # Adjust this to the specific headers you want to allow (e.g., ["Content-Type", "Authorization"])

@@ -6,6 +6,7 @@ import RateConversionOverview from '../citizine/ExchangeRate';
 import UserWithdrawRequest from '../citizine/UserWithdrawRequest';
 import UserTransfers from '../citizine/UserTransfers';
 import MoneyFlow from '../citizine/MoneyFollow';
+import UserProfile from '../citizine/UserProfile';
 
 
 export const CitizenController = () => {
@@ -18,6 +19,7 @@ export const CitizenController = () => {
     {viewPanel == "withdraw" && <UserWithdrawRequest />}
     {viewPanel == "transfers" && <UserTransfers />}
     {viewPanel == "money-flow" && <MoneyFlow />}
+    {viewPanel == "profile" && <UserProfile />}
     </>
   )
 }
