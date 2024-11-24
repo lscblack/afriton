@@ -68,13 +68,16 @@ class Withdrawal_request(Base):
     withdrawal_amount = Column(Float)  # Amount in withdrawal currency
     withdrawal_currency = Column(String)
     wallet_type = Column(String)
-    status = Column(String)
-    request_to = Column(String)
+    status = Column(String, default="Pending")
+    request_to = Column(String, default="agent")
     processed_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     done_by = Column(String, nullable=True)
     total_amount = Column(Float)  # Total amount including fees in Afriton
     charges = Column(Float)  # Fees in Afriton
+    agent_commission = Column(Float, nullable=True)
+    manager_commission = Column(Float, nullable=True)
+    platform_profit = Column(Float, nullable=True)
 
 class Workers(Base):
     __tablename__ = "workers"

@@ -42,6 +42,7 @@ const Dashboard = () => {
     // Clear all authentication-related items from localStorage
     localStorage.removeItem('userInfo');
     localStorage.removeItem('token');
+    localStorage.removeItem('ViewUser');
     localStorage.removeItem('ViewPanel');
     window.location.href = '/login';
   };

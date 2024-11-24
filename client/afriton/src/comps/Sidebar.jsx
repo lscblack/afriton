@@ -31,18 +31,17 @@ const Sidebar = ({ sidebarOpen, toggleSidebar, handleLogout}) => {
           'Real-time tracking',
           'Secure transactions',
         ],
-        viewpanelS: 'payments',
+        viewpanelS: 'transfers',
       },
       {
         icon: <CreditCard />,
-        label: 'Banking Services',
+        label: 'Withdrawal Requests',
         details: [
-          'Easy deposits',
-          'Quick withdrawals',
-          'Account management',
-          '24/7 banking access',
+          'View withdrawal requests',
+          'Process withdrawal requests',
+          'Track withdrawal history',
         ],
-        viewpanelS: 'banking',
+        viewpanelS: 'withdraw',
       },
       {
         icon: <Wallet2Icon />,
@@ -65,6 +64,14 @@ const Sidebar = ({ sidebarOpen, toggleSidebar, handleLogout}) => {
           'Custom alerts',
         ],
         viewpanelS: 'money-flow',
+      },
+      {
+        icon: <PieChart />,
+        label: 'Exchange Rates',
+        details: [
+          'View exchange rates',
+        ],
+        viewpanelS: 'rates',
       },
     ],
     agent: [
@@ -286,7 +293,7 @@ const Sidebar = ({ sidebarOpen, toggleSidebar, handleLogout}) => {
 
         <nav className="space-y-2 overflow-auto  pb-[200px] pl-4 dark:text-white">
           {links.map(({ icon, label, details, viewpanelS }) => (
-            <div key={label} className="group">
+            <div key={label} className="group cursor-pointer">
               <a
                 onClick={() => setViewPanel(viewpanelS)}
                 className="flex items-center gap-3 p-3 text-gray-700 dark:text-slate-200 text-sm hover:bg-amber-50 hover:dark:bg-black rounded-lg"

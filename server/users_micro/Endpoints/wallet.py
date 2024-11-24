@@ -12,6 +12,8 @@ from schemas.emailSchemas import EmailSchema, OtpVerify
 from datetime import datetime,timedelta
 from Endpoints.conversionRate import convert_to_afriton, convert_from_afriton
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
+from typing import Optional
 
 # Load environment variables from .env file
 load_dotenv()
@@ -154,285 +156,235 @@ async def create_withdrawal_request(
     amount: float,
     account_id: str,
     withdrawal_currency: str,
-    wallet_type: Literal["savings", "goal", "business", "family", "emergency", "agent-wallet", "manager-wallet"]
+    wallet_type: str
 ):
-    """Create a withdrawal request with currency conversion"""
+    """Create a withdrawal request"""
     if isinstance(user, HTTPException):
         raise user
 
-    # Verify the user making the request is an agent or manager
-    requester = db.query(Users).filter(
-        Users.id == user['user_id'],
-        Users.user_type.in_(["agent", "manager"])
-    ).first()
-    if not requester:
-        raise HTTPException(status_code=403, detail="Only agents or managers can create withdrawal requests")
-
-    # Get user details for the account requesting withdrawal
-    check_user = db.query(Users).filter(Users.account_id == account_id).first()
-    if not check_user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    # Get wallet
-    wallet = db.query(Wallet).filter(
-        Wallet.account_id == account_id,
-        Wallet.wallet_type == wallet_type
-    ).first()
-
-    if not wallet:
-        raise HTTPException(status_code=404, detail="Wallet not found")
-
-    # Calculate fees (5% total)
-    total_fee_afriton = amount * 0.05
-    agent_commission = amount * 0.03
-    afriton_commission = amount * 0.02
-
-    # Total amount needed (withdrawal amount + fees)
-    total_amount_needed = amount + total_fee_afriton
-
-    # Check if wallet has sufficient balance for amount + fees
-    if total_amount_needed > wallet.balance:
-        raise HTTPException(status_code=400, detail=f"Insufficient balance. Need {total_amount_needed} Afriton (including 5% fees)")
-
-    if amount < 1:  # Minimum withdrawal amount
-        raise HTTPException(status_code=400, detail="Minimum withdrawal amount is 1 Afriton")
-    
-    # Convert amounts to withdrawal currency
     try:
-        withdrawal_amount = convert_from_afriton(amount, withdrawal_currency, db)  # Full amount user will receive
-        fee_in_withdrawal_currency = convert_from_afriton(total_fee_afriton, withdrawal_currency, db)
-    except HTTPException as e:
-        raise e
+        # Verify the user making the request is an agent or manager
+        requester = db.query(Users).filter(
+            Users.id == user['user_id'],
+            Users.user_type.in_(["agent", "manager"])
+        ).first()
+        if not requester:
+            raise HTTPException(status_code=403, detail="Only agents or managers can create withdrawal requests")
 
-    # Distribute fees and commissions
-    fee_distribution = await distribute_fees(
-        db=db,
-        amount=amount,
-        agent_id=user['user_id'],
-        fee_type="withdrawal"
-    )
+        # Get user details
+        check_user = db.query(Users).filter(Users.account_id == account_id).first()
+        if not check_user:
+            raise HTTPException(status_code=404, detail="User not found")
 
-    # Create withdrawal request with fee breakdown
-    withdrawal = Withdrawal_request(
-        account_id=account_id,
-        amount=amount,  # Base amount in Afriton
-        withdrawal_amount=withdrawal_amount,  # Amount in withdrawal currency
-        withdrawal_currency=withdrawal_currency,
-        wallet_type=wallet_type,
-        status="Pending",
-        request_to="agent",
-        total_amount=total_amount_needed,  # Total including fees in Afriton
-        charges=total_fee_afriton,  # Fees in Afriton
-        done_by=str(user['user_id']),  # Add the done_by field
-        agent_commission=fee_distribution["breakdown"]["agent_commission"],
-        manager_commission=fee_distribution["breakdown"]["manager_commission"],
-        platform_profit=fee_distribution["breakdown"]["system_profit"]
-    )
-    db.add(withdrawal)
-    db.commit()
+        # Get wallet
+        wallet = db.query(Wallet).filter(
+            Wallet.account_id == account_id,
+            Wallet.wallet_type == wallet_type
+        ).first()
 
-    # Send notification email
-    heading = "Withdrawal Request Submitted"
-    sub = "New Withdrawal Request"
-    body = f"""
-    <p>Hi {check_user.fname},</p>
-    <p>A withdrawal request has been submitted on your behalf:</p>
-    <ul>
-        <li>Amount to Receive: {withdrawal_amount} {withdrawal_currency}</li>
-        <li>Amount in Afriton: {amount} AFT</li>
-        <li>Service Fee (5%): {fee_in_withdrawal_currency} {withdrawal_currency}</li>
-        <li>Total Deduction from Wallet: {total_amount_needed} AFT</li>
-        <li>Status: Pending</li>
-    </ul>
-    <p>Fee Breakdown:</p>
-    <ul>
-        <li>Agent Commission (3%): {convert_from_afriton(agent_commission, withdrawal_currency, db)} {withdrawal_currency}</li>
-        <li>Platform Fee (2%): {convert_from_afriton(afriton_commission, withdrawal_currency, db)} {withdrawal_currency}</li>
-    </ul>
-    <p>You will be notified once your request is processed.</p>
-    """
-    msg = custom_email(check_user.fname, heading, body)
-    send_new_email(check_user.email, sub, msg)
+        if not wallet:
+            raise HTTPException(status_code=404, detail="Wallet not found")
 
-    return {
-        "message": "Withdrawal request submitted successfully",
-        "request_details": {
-            "amount_to_receive": withdrawal_amount,
-            "withdrawal_currency": withdrawal_currency,
-            "amount_afriton": amount,
-            "service_fee_afriton": total_fee_afriton,
-            "total_deduction": total_amount_needed,
-            "fee_breakdown": {
-                "agent_commission": convert_from_afriton(agent_commission, withdrawal_currency, db),
-                "platform_fee": convert_from_afriton(afriton_commission, withdrawal_currency, db)
-            },
-            "status": "Pending"
+        # Calculate fees (5% total)
+        total_fee = amount * 0.05
+        agent_commission = amount * 0.03  # 3% agent commission
+        platform_profit = amount * 0.02   # 2% platform profit
+        total_amount = amount + total_fee
+
+        # Check if wallet has sufficient balance
+        if total_amount > wallet.balance:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Insufficient balance. Need {total_amount} Afriton (including 5% fees)"
+            )
+
+        # Convert to withdrawal currency
+        try:
+            withdrawal_amount = convert_from_afriton(amount, withdrawal_currency, db)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+        # Create withdrawal request with commission fields
+        withdrawal = Withdrawal_request(
+            account_id=account_id,
+            amount=amount,
+            withdrawal_amount=withdrawal_amount,
+            withdrawal_currency=withdrawal_currency,
+            wallet_type=wallet_type,
+            status="Pending",
+            request_to="agent",
+            total_amount=total_amount,
+            charges=total_fee,
+            done_by=str(user['user_id'])
+        )
+
+        db.add(withdrawal)
+        db.commit()
+        db.refresh(withdrawal)
+
+        # Send notification email
+        try:
+            heading = "Withdrawal Request Submitted"
+            sub = "New Withdrawal Request"
+            body = f"""
+            <p>Hi {check_user.fname},</p>
+            <p>A withdrawal request has been submitted:</p>
+            <ul>
+                <li>Amount: {withdrawal_amount} {withdrawal_currency}</li>
+                <li>Amount in Afriton: {amount} AFT</li>
+                <li>Service Fee (5%): {total_fee} AFT</li>
+                <li>Total Deduction: {total_amount} AFT</li>
+                <li>Status: Pending</li>
+            </ul>
+            <p>You will be notified once your request is processed.</p>
+            """
+            msg = custom_email(check_user.fname, heading, body)
+            send_new_email(check_user.email, sub, msg)
+        except Exception as e:
+            print(f"Email notification error: {str(e)}")
+
+        return {
+            "message": "Withdrawal request created successfully",
+            "details": {
+                "id": withdrawal.id,
+                "amount": amount,
+                "withdrawal_amount": withdrawal_amount,
+                "withdrawal_currency": withdrawal_currency,
+                "total_amount": total_amount,
+                "charges": total_fee,
+                "status": "Pending",
+                "commission_details": {
+                    "agent_commission": agent_commission,
+                    "platform_profit": platform_profit
+                }
+            }
         }
-    }
+
+    except Exception as e:
+        db.rollback()
+        print(f"Error creating withdrawal request: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/respond-withdrawal-request/{request_id}")
 async def respond_withdrawal_request(
     request_id: int,
+    action: Literal["Approve", "Reject"],
     user: user_dependency,
-    db: db_dependency,
-    action: Literal["Approve", "Reject"]
+    db: db_dependency
 ):
+    """Respond to a withdrawal request"""
     if isinstance(user, HTTPException):
         raise user
 
-    # Get user's account_id from Users table
-    user_data = db.query(Users).filter(Users.id == user['user_id']).first()
-    if not user_data:
-        raise HTTPException(status_code=404, detail="User not found")
+    try:
+        # Get user's account_id from Users table
+        user_data = db.query(Users).filter(Users.id == user['user_id']).first()
+        if not user_data:
+            raise HTTPException(status_code=404, detail="User not found")
 
-    # Validate user and fetch the withdrawal request
-    request = db.query(Withdrawal_request).filter(
-        Withdrawal_request.id == request_id,
-        Withdrawal_request.status == "Pending"
-    ).first()
-    if not request:
-        raise HTTPException(status_code=404, detail="Withdrawal request not found or already processed")
+        # Validate user and fetch the withdrawal request
+        request = db.query(Withdrawal_request).filter(
+            Withdrawal_request.id == request_id,
+            Withdrawal_request.status == "Pending"
+        ).first()
+        if not request:
+            raise HTTPException(status_code=404, detail="Withdrawal request not found or already processed")
 
-    wallet = db.query(Wallet).filter(
-        Wallet.account_id == request.account_id,
-        Wallet.wallet_type == request.wallet_type
-    ).first()
-    if not wallet:
-        raise HTTPException(status_code=404, detail="Wallet not found")
+        wallet = db.query(Wallet).filter(
+            Wallet.account_id == request.account_id,
+            Wallet.wallet_type == request.wallet_type
+        ).first()
+        if not wallet:
+            raise HTTPException(status_code=404, detail="Wallet not found")
 
-    if action == "Approve":
-        # Check minimum withdrawal amount
-        if request.amount < 1:
-            raise HTTPException(status_code=400, detail="Minimum withdrawal amount is 1 Afriton")
+        if action == "Approve":
+            # Process approval logic
+            if wallet.balance < request.total_amount:
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Insufficient balance. Required: {request.total_amount} Afriton"
+                )
 
-        # Check if balance is sufficient to cover amount + charges
-        if wallet.balance < request.total_amount:
-            raise HTTPException(
-                status_code=400, 
-                detail=f"Insufficient balance. Total required (including charges): {request.total_amount} Afriton"
+            # Update wallet balance
+            wallet.balance -= request.total_amount
+
+            # Create transaction record
+            transaction = Transaction_history(
+                account_id=request.account_id,
+                amount=-request.total_amount,
+                transaction_type="withdrawal",
+                wallet_type=request.wallet_type,
+                done_by=str(user['user_id'])
             )
+            db.add(transaction)
 
-        # Deduct balance and create transaction history
-        wallet.balance -= request.total_amount
-        transaction = Transaction_history(
-            account_id=wallet.account_id,
-            amount=-request.total_amount,  # Record total deduction including charges
-            transaction_type="withdrawal",
-            wallet_type=request.wallet_type,
-            done_by=str(user['user_id'])
-        )
-        db.add(transaction)
-        request.status = "Approved"
+        # Update request status
+        request.status = action + "d"  # "Approved" or "Rejected"
         request.processed_at = datetime.utcnow()
 
-        # Convert remaining balance to withdrawal currency for email
+        db.commit()
+
+        # Send email notification
         try:
-            remaining_balance_foreign = convert_from_afriton(wallet.balance - request.total_amount, 
-                                                          request.withdrawal_currency, 
-                                                          db)
-        except HTTPException as e:
-            raise e
+            # Get user details for email
+            user_details = db.query(Users).filter(Users.account_id == request.account_id).first()
+            agent_details = db.query(Users).filter(Users.id == user['user_id']).first()
+            
+            heading = "Withdrawal Request Update"
+            sub = f"Withdrawal Request {action}ed"
+            
+            if action == "Approve":
+                body = f"""
+                <p>Hi {user_details.fname},</p>
+                <p>Your withdrawal request has been approved.</p>
+                <p>Details:</p>
+                <ul>
+                    <li>Amount: {request.withdrawal_amount} {request.withdrawal_currency}</li>
+                    <li>Amount in Afriton: {request.amount} AFT</li>
+                    <li>Service Fee: {request.charges} AFT</li>
+                    <li>Total Deducted: {request.total_amount} AFT</li>
+                    <li>Processed by: {agent_details.fname} {agent_details.lname}</li>
+                </ul>
+                <p>The funds will be processed shortly.</p>
+                """
+            else:
+                body = f"""
+                <p>Hi {user_details.fname},</p>
+                <p>Your withdrawal request has been rejected.</p>
+                <p>Details of rejected request:</p>
+                <ul>
+                    <li>Amount: {request.withdrawal_amount} {request.withdrawal_currency}</li>
+                    <li>Amount in Afriton: {request.amount} AFT</li>
+                    <li>Processed by: {agent_details.fname} {agent_details.lname}</li>
+                </ul>
+                <p>Please contact support if you have any questions.</p>
+                """
 
-        # Email notifications
-        heading = "Withdrawal Request Update"
-        sub = f"Withdrawal Request {action}ed"
-        
-        # Get user details for email
-        user_details = db.query(Users).filter(Users.account_id == request.account_id).first()
-        
-        user_body = f"""
-        <p>Hi {user_details.fname},</p>
-        <p>Your withdrawal request has been {action.lower()}ed.</p>
-        <p>Details:</p>
-        <ul>
-            <li>Amount to Receive: {request.withdrawal_amount} {request.withdrawal_currency}</li>
-            <li>Amount in Afriton: {request.amount} AFT</li>
-            <li>Service Fee: {request.charges} AFT ({convert_from_afriton(request.charges, request.withdrawal_currency, db)} {request.withdrawal_currency})</li>
-            <li>Total Deducted: {request.total_amount} AFT ({convert_from_afriton(request.total_amount, request.withdrawal_currency, db)} {request.withdrawal_currency})</li>
-        </ul>
-        <p>Remaining Balance:</p>
-        <ul>
-            <li>In Afriton: {wallet.balance - request.total_amount} AFT</li>
-            <li>In {request.withdrawal_currency}: {remaining_balance_foreign} {request.withdrawal_currency}</li>
-        </ul>
-        """
-    else:
-        user_body = f"""
-        <p>Hi {user_details.fname},</p>
-        <p>Your withdrawal request has been rejected.</p>
-        <p>Details of rejected request:</p>
-        <ul>
-            <li>Amount Requested: {request.withdrawal_amount} {request.withdrawal_currency}</li>
-            <li>Amount in Afriton: {request.amount} AFT</li>
-            <li>Wallet Type: {request.wallet_type}</li>
-        </ul>
-        <p>Your wallet balance remains unchanged:</p>
-        <ul>
-            <li>In Afriton: {wallet.balance} AFT</li>
-            <li>In {request.withdrawal_currency}: {convert_from_afriton(wallet.balance, request.withdrawal_currency, db)} {request.withdrawal_currency}</li>
-        </ul>
-        """
+            msg = custom_email(user_details.fname, heading, body)
+            send_new_email(user_details.email, sub, msg)
 
-    # Send email to user
-    send_new_email(user_details.email, sub, custom_email(user_details.fname, heading, user_body))
-
-    return {
-        "message": f"Withdrawal request {action.lower()}ed successfully",
-        "status": action,
-        "details": {
-            "base_amount": {
-                "afriton": request.amount,
-                "foreign": {
-                    "amount": request.withdrawal_amount,
-                    "currency": request.withdrawal_currency
-                }
-            },
-            "fees": {
-                "total": {
-                    "afriton": request.charges,
-                    "foreign": {
-                        "amount": convert_from_afriton(request.charges, request.withdrawal_currency, db),
-                        "currency": request.withdrawal_currency
-                    }
-                },
-                "breakdown": {
-                    "agent_commission": {
-                        "afriton": request.charges * 0.6,
-                        "foreign": {
-                            "amount": convert_from_afriton(request.charges * 0.6, request.withdrawal_currency, db),
-                            "currency": request.withdrawal_currency
-                        }
-                    },
-                    "platform_fee": {
-                        "afriton": request.charges * 0.4,
-                        "foreign": {
-                            "amount": convert_from_afriton(request.charges * 0.4, request.withdrawal_currency, db),
-                            "currency": request.withdrawal_currency
-                        }
-                    }
-                }
-            },
-            "total_deducted": {
-                "afriton": request.total_amount,
-                "foreign": {
-                    "amount": convert_from_afriton(request.total_amount, request.withdrawal_currency, db),
-                    "currency": request.withdrawal_currency
-                }
-            },
-            "remaining_balance": {
-                "afriton": wallet.balance - request.total_amount if action == "Approve" else wallet.balance,
-                "foreign": {
-                    "amount": remaining_balance_foreign if action == "Approve" else convert_from_afriton(wallet.balance, request.withdrawal_currency, db),
-                    "currency": request.withdrawal_currency
-                }
-            },
-            "wallet_type": request.wallet_type,
+        except Exception as e:
+            print(f"Email notification error: {str(e)}")
+            # Continue with the request even if email fails
+            
+        return {
+            "message": f"Withdrawal request {action.lower()}ed successfully",
+            "request_id": request_id,
+            "status": request.status,
             "processed_at": request.processed_at
         }
-    }
 
-# deposit money to wallet
-# Endpoint for initiating a deposit request
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Create a model for the deposit request
+class DepositRequest(BaseModel):
+    account_id: str
+    amount: float
+    currency: str
+    wallet_type: str
+
 @router.post("/create-deposit-request")
 async def create_deposit_request(
     user: user_dependency,
@@ -440,100 +392,125 @@ async def create_deposit_request(
     account_id: str,
     amount: float,
     currency: str,
-    wallet_type: Literal["savings", "goal", "business", "family", "emergency"]
+    wallet_type: str
 ):
+    """Create a deposit request"""
     if isinstance(user, HTTPException):
         raise user
 
-    # Convert amount to Afriton
     try:
-        afriton_amount = convert_to_afriton(amount, currency, db)
-    except HTTPException as e:
-        raise e
+        # Verify the user making the request is an agent or manager
+        requester = db.query(Users).filter(
+            Users.id == user['user_id'],
+            Users.user_type.in_(["agent", "manager"])
+        ).first()
+        
+        if not requester:
+            raise HTTPException(
+                status_code=403, 
+                detail="Only agents or managers can create deposit requests"
+            )
 
-    # Verify that the requester is an agent or manager
-    requester = db.query(Users).filter(
-        Users.id == user['user_id'],
-        Users.user_type.in_(["agent", "manager"])
-    ).first()
+        # Get user details
+        target_user = db.query(Users).filter(
+            Users.account_id == account_id
+        ).first()
+        
+        if not target_user:
+            raise HTTPException(status_code=404, detail="User not found")
 
-    if not requester:
-        raise HTTPException(status_code=403, detail="Only agents or managers can initiate deposit requests")
+        # Get wallet
+        wallet = db.query(Wallet).filter(
+            Wallet.account_id == account_id,
+            Wallet.wallet_type == wallet_type
+        ).first()
 
-    # Check worker's available balance
-    worker = db.query(Workers).filter(Workers.user_id == user['user_id']).first()
-    if not worker:
-        raise HTTPException(status_code=404, detail="Worker record not found")
+        if not wallet:
+            raise HTTPException(status_code=404, detail="Wallet not found")
 
-    if afriton_amount > worker.available_balance:
-        raise HTTPException(status_code=400, detail="Insufficient available balance for deposit")
+        # Convert amount to Afriton
+        try:
+            afriton_amount = convert_to_afriton(amount, currency, db)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
 
-    # Check if the target user exists
-    target_user = db.query(Users).filter(Users.account_id == account_id).first()
-    if not target_user:
-        raise HTTPException(status_code=404, detail="User not found")
+        # Update wallet balance
+        wallet.balance += afriton_amount
 
-    # Validate the deposit amount
-    if afriton_amount <= 0:
-        raise HTTPException(status_code=400, detail="Amount must be greater than 0")
+        # Create transaction history
+        transaction = Transaction_history(
+            account_id=account_id,
+            amount=afriton_amount,
+            original_amount=amount,
+            original_currency=currency,
+            transaction_type="deposit",
+            wallet_type=wallet_type,
+            done_by=str(user['user_id'])
+        )
+        
+        db.add(transaction)
+        db.commit()
 
-    # Check and retrieve wallet
-    wallet = db.query(Wallet).filter(
-        Wallet.account_id == account_id,
-        Wallet.wallet_type == wallet_type
-    ).first()
+        # Send email notifications
+        try:
+            # Email to customer
+            customer_heading = "Deposit Confirmation"
+            customer_sub = "New Deposit to Your Wallet"
+            customer_body = f"""
+            <p>Hi {target_user.fname},</p>
+            <p>A deposit has been made to your {wallet_type} wallet:</p>
+            <ul>
+                <li>Amount: {amount} {currency}</li>
+                <li>Converted Amount: {afriton_amount} Afriton</li>
+                <li>Wallet Type: {wallet_type}</li>
+                <li>New Balance: {wallet.balance} Afriton</li>
+                <li>Transaction ID: {transaction.id}</li>
+                <li>Processed by: {requester.fname} {requester.lname}</li>
+            </ul>
+            <p>If you did not authorize this transaction, please contact support immediately.</p>
+            """
+            customer_msg = custom_email(target_user.fname, customer_heading, customer_body)
+            send_new_email(target_user.email, customer_sub, customer_msg)
 
-    if not wallet:
-        raise HTTPException(status_code=404, detail="Wallet not found")
+            # Email to agent/manager
+            agent_heading = "Deposit Transaction Successful"
+            agent_sub = "Deposit Transaction Confirmation"
+            agent_body = f"""
+            <p>Hi {requester.fname},</p>
+            <p>You have successfully processed a deposit:</p>
+            <ul>
+                <li>Customer: {target_user.fname} {target_user.lname}</li>
+                <li>Amount: {amount} {currency}</li>
+                <li>Converted Amount: {afriton_amount} Afriton</li>
+                <li>Wallet Type: {wallet_type}</li>
+                <li>Transaction ID: {transaction.id}</li>
+            </ul>
+            <p>Transaction has been recorded and customer has been notified.</p>
+            """
+            agent_msg = custom_email(requester.fname, agent_heading, agent_body)
+            send_new_email(requester.email, agent_sub, agent_msg)
 
-    # Update the wallet balance with Afriton amount
-    wallet.balance += afriton_amount
+        except Exception as e:
+            print(f"Email notification error: {str(e)}")
+            # Don't raise exception here, as the transaction was successful
+            # Just log the email error
 
-    # Create transaction history with updated fields
-    transaction = Transaction_history(
-        account_id=account_id,
-        amount=afriton_amount,
-        original_amount=amount,
-        original_currency=currency,
-        transaction_type="deposit",
-        wallet_type=wallet_type,
-        done_by=str(user['user_id'])  # Convert user_id to string
-    )
-    db.add(transaction)
-
-    # Update worker's available balance
-    worker.available_balance -= afriton_amount
-
-    # Commit the changes
-    db.commit()
-
-    # Send notification email to the user
-    heading = "Deposit Confirmation"
-    sub = "Deposit Successfully Processed"
-    user_body = f"""
-    <p>Hi {target_user.fname},</p>
-    <p>A deposit has been successfully processed:</p>
-    <ul>
-        <li>Original Amount: {amount} {currency}</li>
-        <li>Converted Amount: {afriton_amount} Afriton</li>
-        <li>Wallet Type: {wallet_type}</li>
-    </ul>
-    <p>Your new balance is: {wallet.balance} Afriton</p>
-    """
-    user_msg = custom_email(target_user.fname, heading, user_body)
-    send_new_email(target_user.email, sub, user_msg)
-
-    return {
-        "message": "Deposit successfully created",
-        "details": {
-            "account_id": account_id,
-            "amount": amount,
-            "currency": currency,
-            "converted_amount": afriton_amount,
-            "wallet_type": wallet_type,
-            "new_balance": wallet.balance,
+        return {
+            "message": "Deposit processed successfully",
+            "details": {
+                "account_id": account_id,
+                "amount": amount,
+                "currency": currency,
+                "converted_amount": afriton_amount,
+                "wallet_type": wallet_type,
+                "new_balance": wallet.balance,
+                "transaction_id": transaction.id
+            }
         }
-    }
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/commission-balance")
 async def get_commission_balance(
@@ -685,133 +662,142 @@ async def transfer_money(
     recipient_account_id: str,
     amount: float,
     currency: str,
-    from_wallet_type: Literal["savings", "goal", "business", "family", "emergency"]
+    from_wallet_type: str
 ):
     """Transfer money to another Afriton user"""
     if isinstance(user, HTTPException):
         raise user
 
-    # Get sender details
-    sender = db.query(Users).filter(Users.id == user['user_id']).first()
-    if not sender:
-        raise HTTPException(status_code=404, detail="Sender not found")
+    try:
+        # Get sender details
+        sender = db.query(Users).filter(Users.id == user['user_id']).first()
+        if not sender:
+            raise HTTPException(status_code=404, detail="Sender not found")
 
-    # Get recipient details
-    recipient = db.query(Users).filter(
-        Users.account_id == recipient_account_id,
-        Users.acc_status == True,  # Ensure recipient account is verified
-        Users.is_wallet_active == True  # Ensure recipient wallet is active
-    ).first()
-    if not recipient:
-        raise HTTPException(
-            status_code=404, 
-            detail="Recipient not found or account not activated"
+        # Get recipient details
+        recipient = db.query(Users).filter(
+            Users.account_id == recipient_account_id,
+            Users.acc_status == True,  # Ensure recipient account is verified
+            Users.is_wallet_active == True  # Ensure recipient wallet is active
+        ).first()
+        if not recipient:
+            raise HTTPException(
+                status_code=404, 
+                detail="Recipient not found or account not activated"
+            )
+
+        # Convert amount to Afriton
+        try:
+            afriton_amount = convert_to_afriton(amount, currency, db)
+        except HTTPException as e:
+            raise e
+
+        # Get sender's wallet
+        sender_wallet = db.query(Wallet).filter(
+            Wallet.account_id == sender.account_id,
+            Wallet.wallet_type == from_wallet_type
+        ).first()
+        if not sender_wallet:
+            raise HTTPException(status_code=404, detail="Sender wallet not found")
+
+        # Check sufficient balance
+        if sender_wallet.balance < afriton_amount:
+            raise HTTPException(status_code=400, detail="Insufficient balance")
+
+        # Get recipient's savings wallet (default wallet for receiving transfers)
+        recipient_wallet = db.query(Wallet).filter(
+            Wallet.account_id == recipient_account_id,
+            Wallet.wallet_type == "savings"
+        ).first()
+        if not recipient_wallet:
+            raise HTTPException(status_code=404, detail="Recipient wallet not found")
+
+        # Perform transfer
+        sender_wallet.balance -= afriton_amount
+        recipient_wallet.balance += afriton_amount
+
+        # Create transaction history for sender
+        sender_transaction = Transaction_history(
+            account_id=sender.account_id,
+            amount=-afriton_amount,
+            original_amount=-amount,
+            original_currency=currency,
+            transaction_type="transfer_sent",
+            wallet_type=from_wallet_type,
+            done_by=str(user['user_id'])
         )
 
-    # Convert amount to Afriton
-    try:
-        afriton_amount = convert_to_afriton(amount, currency, db)
-    except HTTPException as e:
-        raise e
+        # Create transaction history for recipient
+        recipient_transaction = Transaction_history(
+            account_id=recipient_account_id,
+            amount=afriton_amount,
+            original_amount=amount,
+            original_currency=currency,
+            transaction_type="transfer_received",
+            wallet_type="savings",
+            done_by=str(user['user_id'])
+        )
 
-    # Get sender's wallet
-    sender_wallet = db.query(Wallet).filter(
-        Wallet.account_id == sender.account_id,
-        Wallet.wallet_type == from_wallet_type
-    ).first()
-    if not sender_wallet:
-        raise HTTPException(status_code=404, detail="Sender wallet not found")
+        db.add(sender_transaction)
+        db.add(recipient_transaction)
+        db.commit()
 
-    # Check sufficient balance
-    if sender_wallet.balance < afriton_amount:
-        raise HTTPException(status_code=400, detail="Insufficient balance")
+        # Send email notifications
+        try:
+            # To sender
+            sender_body = f"""
+            <p>Hi {sender.fname},</p>
+            <p>Your transfer has been completed successfully:</p>
+            <ul>
+                <li>Amount Sent: {amount} {currency}</li>
+                <li>Converted Amount: {afriton_amount} Afriton</li>
+                <li>Recipient: {recipient.fname} {recipient.lname}</li>
+                <li>From Wallet: {from_wallet_type}</li>
+            </ul>
+            <p>Your new balance is: {sender_wallet.balance} Afriton</p>
+            """
+            send_new_email(
+                sender.email,
+                "Transfer Confirmation",
+                custom_email(sender.fname, "Transfer Sent", sender_body)
+            )
 
-    # Get recipient's savings wallet (default wallet for receiving transfers)
-    recipient_wallet = db.query(Wallet).filter(
-        Wallet.account_id == recipient_account_id,
-        Wallet.wallet_type == "savings"
-    ).first()
-    if not recipient_wallet:
-        raise HTTPException(status_code=404, detail="Recipient wallet not found")
+            # To recipient
+            recipient_body = f"""
+            <p>Hi {recipient.fname},</p>
+            <p>You have received a transfer:</p>
+            <ul>
+                <li>Amount: {amount} {currency}</li>
+                <li>Converted Amount: {afriton_amount} Afriton</li>
+                <li>From: {sender.fname} {sender.lname}</li>
+                <li>To Wallet: savings</li>
+            </ul>
+            <p>Your new balance is: {recipient_wallet.balance} Afriton</p>
+            """
+            send_new_email(
+                recipient.email,
+                "Transfer Received",
+                custom_email(recipient.fname, "Transfer Received", recipient_body)
+            )
 
-    # Perform transfer
-    sender_wallet.balance -= afriton_amount
-    recipient_wallet.balance += afriton_amount
+        except Exception as e:
+            print(f"Email notification error: {str(e)}")
 
-    # Create transaction history for sender
-    sender_transaction = Transaction_history(
-        account_id=sender.account_id,
-        amount=-afriton_amount,
-        original_amount=-amount,
-        original_currency=currency,
-        transaction_type="transfer_sent",
-        wallet_type=from_wallet_type,
-        done_by=str(user['user_id'])
-    )
-
-    # Create transaction history for recipient
-    recipient_transaction = Transaction_history(
-        account_id=recipient_account_id,
-        amount=afriton_amount,
-        original_amount=amount,
-        original_currency=currency,
-        transaction_type="transfer_received",
-        wallet_type="savings",
-        done_by=str(user['user_id'])
-    )
-
-    db.add(sender_transaction)
-    db.add(recipient_transaction)
-    db.commit()
-
-    # Send email notifications
-    # To sender
-    sender_body = f"""
-    <p>Hi {sender.fname},</p>
-    <p>Your transfer has been completed successfully:</p>
-    <ul>
-        <li>Amount Sent: {amount} {currency}</li>
-        <li>Converted Amount: {afriton_amount} Afriton</li>
-        <li>Recipient: {recipient.fname} {recipient.lname}</li>
-        <li>From Wallet: {from_wallet_type}</li>
-    </ul>
-    <p>Your new balance is: {sender_wallet.balance} Afriton</p>
-    """
-    send_new_email(
-        sender.email,
-        "Transfer Confirmation",
-        custom_email(sender.fname, "Transfer Sent", sender_body)
-    )
-
-    # To recipient
-    recipient_body = f"""
-    <p>Hi {recipient.fname},</p>
-    <p>You have received a transfer:</p>
-    <ul>
-        <li>Amount: {amount} {currency}</li>
-        <li>Converted Amount: {afriton_amount} Afriton</li>
-        <li>From: {sender.fname} {sender.lname}</li>
-        <li>To Wallet: savings</li>
-    </ul>
-    <p>Your new balance is: {recipient_wallet.balance} Afriton</p>
-    """
-    send_new_email(
-        recipient.email,
-        "Transfer Received",
-        custom_email(recipient.fname, "Transfer Received", recipient_body)
-    )
-
-    return {
-        "message": "Transfer completed successfully",
-        "details": {
-            "amount": amount,
-            "currency": currency,
-            "converted_amount": afriton_amount,
-            "recipient": recipient.fname,
-            "from_wallet": from_wallet_type,
-            "new_balance": sender_wallet.balance
+        return {
+            "message": "Transfer completed successfully",
+            "details": {
+                "amount": amount,
+                "currency": currency,
+                "converted_amount": afriton_amount,
+                "recipient": recipient.fname,
+                "from_wallet": from_wallet_type,
+                "new_balance": sender_wallet.balance
+            }
         }
-    }
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/my-withdrawal-requests")
 async def get_my_withdrawal_requests(
@@ -926,80 +912,57 @@ async def distribute_fees(
     fee_type: Literal["withdrawal", "deposit"]
 ) -> dict:
     """
-    Distribute fees between agent/manager and platform.
+    Distribute fees between agent and platform.
     Only tracks system profit.
     """
-    # Calculate fees
-    total_fee = amount * 0.05  # 5% total fee
-    agent_commission = amount * 0.03  # 3% agent commission
-    platform_fee = amount * 0.02  # 2% platform fee
+    try:
+        # Calculate fees
+        total_fee = amount * 0.05  # 5% total fee
+        agent_commission = amount * 0.03  # 3% agent commission
+        platform_fee = amount * 0.02  # 2% platform fee
 
-    # Get agent details
-    agent = db.query(Users).filter(Users.id == agent_id).first()
-    if not agent:
-        raise HTTPException(status_code=404, detail="Agent not found")
+        # Get agent details
+        agent = db.query(Users).filter(Users.id == agent_id).first()
+        if not agent:
+            raise HTTPException(status_code=404, detail="Agent not found")
 
-    # Credit agent's commission wallet
-    agent_wallet = db.query(Wallet).filter(
-        Wallet.account_id == agent.account_id,
-        Wallet.wallet_type == f"{agent.user_type}-wallet"
-    ).first()
-    
-    if agent_wallet:
-        agent_wallet.balance += agent_commission
-    else:
-        # Create commission wallet if it doesn't exist
-        agent_wallet = Wallet(
-            account_id=agent.account_id,
-            balance=agent_commission,
-            wallet_type=f"{agent.user_type}-wallet"
-        )
-        db.add(agent_wallet)
-
-    # Get manager if agent has one
-    manager = None
-    if agent.user_type == "agent":
-        manager = db.query(Users).filter(
-            Users.id == agent.manager_id,
-            Users.user_type == "manager"
-        ).first()
-
-    manager_commission = 0
-    if manager:
-        # Manager gets 20% of platform fee
-        manager_commission = platform_fee * 0.2
-        manager_wallet = db.query(Wallet).filter(
-            Wallet.account_id == manager.account_id,
-            Wallet.wallet_type == "manager-wallet"
+        # Credit agent's commission wallet
+        agent_wallet = db.query(Wallet).filter(
+            Wallet.account_id == agent.account_id,
+            Wallet.wallet_type == "agent-wallet"
         ).first()
         
-        if manager_wallet:
-            manager_wallet.balance += manager_commission
+        if agent_wallet:
+            agent_wallet.balance += agent_commission
         else:
-            manager_wallet = Wallet(
-                account_id=manager.account_id,
-                balance=manager_commission,
-                wallet_type="manager-wallet"
+            # Create commission wallet if it doesn't exist
+            agent_wallet = Wallet(
+                account_id=agent.account_id,
+                balance=agent_commission,
+                wallet_type="agent-wallet"
             )
-            db.add(manager_wallet)
+            db.add(agent_wallet)
 
-    # Record only system profit (after manager commission)
-    system_profit = platform_fee - manager_commission
-    profit_entry = Profit(
-        amount=system_profit,
-        fee_type=fee_type,
-        transaction_amount=amount
-    )
-    db.add(profit_entry)
+        # Record system profit
+        profit_entry = Profit(
+            amount=platform_fee,
+            fee_type=fee_type,
+            transaction_amount=amount
+        )
+        db.add(profit_entry)
 
-    return {
-        "total_fee": total_fee,
-        "breakdown": {
-            "agent_commission": agent_commission,
-            "manager_commission": manager_commission,
-            "system_profit": system_profit
+        return {
+            "total_fee": total_fee,
+            "breakdown": {
+                "agent_commission": agent_commission,
+                "manager_commission": 0,  # No manager commission for now
+                "system_profit": platform_fee
+            }
         }
-    }
+    except Exception as e:
+        print(f"Error in distribute_fees: {str(e)}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/transactions/last-transaction")
 async def get_last_transaction(
@@ -1137,3 +1100,5 @@ async def get_all_transactions(
         "limit": limit,
         "wallet_type": wallet_type or "all"
     }
+
+

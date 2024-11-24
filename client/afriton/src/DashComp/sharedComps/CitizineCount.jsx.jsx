@@ -304,6 +304,7 @@ const CitizineCount = () => {
                         <p className="text-sm">Owner</p>
                       </div>
                       <p className="text-lg font-semibold mt-1">{wallet.owner}</p>
+                      <p className="text-lg font-semibold mt-1">{wallet.accountNumber}</p>
                     </div>
                     <div>
                       <div className="flex items-center gap-2">

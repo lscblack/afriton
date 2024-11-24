@@ -19,8 +19,8 @@ export function AppProvider({ children }) {
       return null;
     }
   });
-  const [viewPanel, setViewPanel] = useState(localStorage.getItem('ViewPanel') || 'dashboard');
-  const [viewUser, setViewUser] = useState(localStorage.getItem('ViewUser') || 'citizen');
+  const [viewPanel, setViewPanelUser] = useState(localStorage.getItem('ViewPanel') || 'dashboard');
+  const [viewUser, viewUserType] = useState(localStorage.getItem('ViewUser') || 'citizen');
 
   useEffect(() => {
     const root = document.documentElement;
@@ -38,7 +38,10 @@ export function AppProvider({ children }) {
       console.error('Error setting user data:', error);
     }
   };
-
+  const setViewUser = (data) => {
+    viewUserType(data);
+    localStorage.setItem('ViewUser', data);
+  }
   const clearUserData = () => {
     setUserInfo(null);
     localStorage.removeItem('userInfo');
@@ -48,6 +51,10 @@ export function AppProvider({ children }) {
   const toggleTheme = () => {
     setTheme((prevTheme) => (prevTheme === 'light' ? 'dark' : 'light'));
   };
+  const setViewPanel = (data) => {
+    setViewPanelUser(data);
+    localStorage.setItem('ViewPanel', data);
+  }
 
   const contextValue = {
     theme,

@@ -2,7 +2,7 @@ from enum import Enum
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
-from Endpoints import auth,otp,wallet,conversionRate
+from Endpoints import auth,otp,wallet,conversionRate,counts
 from fastapi.responses import HTMLResponse
 from db.database import Base, engine
 
@@ -18,7 +18,7 @@ app = FastAPI(
 # Configure CORS 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Adjust this to the specific origins you want to allow
+    allow_origins=["http://localhost:5173"],  # Add your frontend URL
     allow_credentials=True,
     allow_methods=["*"],  # Adjust this to the specific methods you want to allow (e.g., ["GET", "POST"])
     allow_headers=["*"],  # Adjust this to the specific headers you want to allow (e.g., ["Content-Type", "Authorization"])
@@ -26,6 +26,7 @@ app.add_middleware(
 
 # Include the routers from auth, apis, and otp
 
+app.include_router(counts.router)
 app.include_router(auth.router)
 app.include_router(conversionRate.router)
 app.include_router(otp.router)

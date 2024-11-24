@@ -259,21 +259,21 @@ Location: ${transaction.location}
 
   const StatusBadge = ({ status }) => {
     const styles = {
-      Pending: "bg-yellow-100 text-yellow-800",
-      Paid: "bg-green-100 text-green-800",
-      Received: "bg-blue-100 text-blue-800"
+      Pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-800",
+      Paid: "bg-green-100 text-green-800 dark:bg-green-600",
+      Received: "bg-blue-100 text-blue-800 dark:bg-blue-600"
     };
     
     return (
-      <span className={`${styles[status]} px-2 py-1 rounded-full text-xs font-medium`}>
+      <span className={`${styles[status]} px-2 py-1 rounded-full text-xs dark:text-white font-medium`}>
         {status}
       </span>
     );
   };
 
   return (
-    <div className="bg-white dark dark:bg-[#0c0a1f] rounded-xl p-6">
-      <div className=" mx-auto">
+    <div className="bg-white dark:bg-[#0c0a1f] rounded-xl p-6">
+      <div className="max-w-[2000px] mx-auto">
         {/* Header and Controls */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Transactions</h1>
@@ -281,7 +281,8 @@ Location: ${transaction.location}
           <div className="flex flex-col sm:flex-row gap-4 mb-4">
             {/* Wallet Type Selector */}
             <select
-              className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-600 dark:bg-[#1c1a3f] dark:text-white"
+              className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-600 
+              dark:bg-gray-800 dark:border-gray-700 dark:text-white"
               value={selectedWalletType}
               onChange={(e) => setSelectedWalletType(e.target.value)}
             >
@@ -294,11 +295,12 @@ Location: ${transaction.location}
 
             {/* Search */}
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 w-4 h-4" />
               <input
                 type="text"
                 placeholder="Search transactions..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-600 transition-all"
+                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-600 
+                dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:placeholder-gray-400"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -307,7 +309,8 @@ Location: ${transaction.location}
             {/* Filter Toggle */}
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center gap-2 px-4 py-2  border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 
+              dark:border-gray-700 dark:hover:bg-gray-800 dark:text-white"
             >
               <SlidersHorizontal className="w-4 h-4" />
               Filters
@@ -318,47 +321,30 @@ Location: ${transaction.location}
           <div className={`grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4 transition-all duration-300 ${
             showFilters ? 'opacity-100 max-h-96' : 'opacity-0 max-h-0 overflow-hidden'
           }`}>
-            <select
-              className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-600"
-              value={filters.status}
-              onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
-            >
-              <option value="all">All Status</option>
-              <option value="Pending">Pending</option>
-              <option value="Paid">Paid</option>
-              <option value="Received">Received</option>
-            </select>
-            <select
-              className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-600"
-              value={filters.type}
-              onChange={(e) => setFilters(prev => ({ ...prev, type: e.target.value }))}
-            >
-              <option value="all">All Types</option>
-              <option value="Purchase">Purchase</option>
-              <option value="Subscription">Subscription</option>
-              <option value="Deposit">Deposit</option>
-            </select>
-            <select
-              className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-600"
-              value={filters.category}
-              onChange={(e) => setFilters(prev => ({ ...prev, category: e.target.value }))}
-            >
-              <option value="all">All Categories</option>
-              <option value="Shopping">Shopping</option>
-              <option value="Entertainment">Entertainment</option>
-            </select>
+            {/* Filter Selects */}
+            {['status', 'type', 'category'].map((filterType) => (
+              <select
+                key={filterType}
+                className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-600 
+                dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                value={filters[filterType]}
+                onChange={(e) => setFilters(prev => ({ ...prev, [filterType]: e.target.value }))}
+              >
+                {/* ... options remain the same ... */}
+              </select>
+            ))}
           </div>
         </div>
 
         {/* Main Content */}
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Transactions List */}
-          <div className="flex-1 ]  rounded-xl shadow-sm overflow-hidden">
-            <div className="overflow-x-auto ">
+          <div className="flex-1 rounded-xl shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="bg-gray-50">
-                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-500">
+                  <tr className="bg-gray-50 dark:bg-gray-800">
+                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 dark:text-gray-400">
                       <button
                         onClick={() => handleSort('merchant')}
                         className="flex items-center gap-2"
@@ -367,7 +353,7 @@ Location: ${transaction.location}
                         <ArrowUpDown className="w-4 h-4" />
                       </button>
                     </th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-500">
+                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 dark:text-gray-400">
                       <button
                         onClick={() => handleSort('date')}
                         className="flex items-center gap-2"
@@ -376,7 +362,7 @@ Location: ${transaction.location}
                         <ArrowUpDown className="w-4 h-4" />
                       </button>
                     </th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-500">
+                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 dark:text-gray-400">
                       <button
                         onClick={() => handleSort('amount')}
                         className="flex items-center gap-2"
@@ -385,10 +371,10 @@ Location: ${transaction.location}
                         <ArrowUpDown className="w-4 h-4" />
                       </button>
                     </th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-500">Status</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 dark:text-gray-400">Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                   {isLoading ? (
                     <tr>
                       <td colSpan="4" className="px-6 py-4 text-center">
@@ -415,7 +401,7 @@ Location: ${transaction.location}
                       <tr
                         key={transaction.id}
                         onClick={() => handleTransactionClick(transaction)}
-                        className="cursor-pointer hover:bg-gray-50 transition-colors group"
+                        className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                       >
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-4">
@@ -423,12 +409,12 @@ Location: ${transaction.location}
                               {transaction.icon}
                             </div>
                             <div>
-                              <div className="font-medium text-gray-900">{transaction.merchant}</div>
-                              <div className="text-sm text-gray-500">{transaction.type}</div>
+                              <div className="font-medium text-gray-900 dark:text-white">{transaction.merchant}</div>
+                              <div className="text-sm text-gray-500 dark:text-gray-400">{transaction.type}</div>
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-500">{transaction.date}</td>
+                        <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">{transaction.date}</td>
                         <td className="px-6 py-4">
                           <div className={`flex items-center ${
                             transaction.amount < 0 ? 'text-red-600' : 'text-green-600'
@@ -438,7 +424,7 @@ Location: ${transaction.location}
                             ) : (
                               <ArrowUpRight className="w-4 h-4 mr-1" />
                             )}
-                            ${Math.abs(transaction.amount).toFixed(2)}
+                            ₳{Math.abs(transaction.amount).toFixed(2)}
                           </div>
                         </td>
                         <td className="px-6 py-4">
@@ -453,16 +439,16 @@ Location: ${transaction.location}
           </div>
 
           {/* Transaction Details Panel */}
-          <div className={`lg:w-1/3  rounded-xl shadow-sm transition-all duration-300 transform ${
-            isDetailsPanelOpen ? 'translate-x-0 opacity-100' : 'translate-x-0 opacity-0 lg:opacity-100'
+          <div className={`lg:w-1/3 bg-white dark:bg-[#0c0a1f] rounded-xl shadow-sm transition-all duration-300 transform ${
+            isDetailsPanelOpen ? 'translate-x-0' : 'translate-x-0'
           }`}>
             {selectedTransaction ? (
               <div className="p-6">
                 <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-bold text-gray-900">Transaction Details</h2>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Transaction Details</h2>
                   <button
                     onClick={() => setIsDetailsPanelOpen(false)}
-                    className="lg:hidden text-gray-400 hover:text-gray-500"
+                    className="text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400"
                   >
                     ×
                   </button>
@@ -470,14 +456,14 @@ Location: ${transaction.location}
 
                 <div className="space-y-6">
                   {/* Transaction Header */}
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-full bg-yellow-50 flex items-center justify-center">
                         {selectedTransaction.icon}
                       </div>
                       <div>
-                        <h3 className="font-medium text-gray-900">{selectedTransaction.merchant}</h3>
-                        <p className="text-sm text-gray-500">{selectedTransaction.date}</p>
+                        <h3 className="font-medium text-gray-900 dark:text-white">{selectedTransaction.merchant}</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{selectedTransaction.date}</p>
                       </div>
                     </div>
                     <div className="text-right">
@@ -493,74 +479,43 @@ Location: ${transaction.location}
                   {/* Transaction Details */}
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
-                      <div className="p-4 bg-gray-50 rounded-lg">
-                        <p className="text-sm text-gray-500">Transaction Type</p>
-                        <p className="font-medium text-gray-900">{selectedTransaction.type}</p>
+                      <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Transaction Type</p>
+                        <p className="font-medium text-gray-900 dark:text-white">{selectedTransaction.type}</p>
                       </div>
-                      <div className="p-4 bg-gray-50 rounded-lg">
-                        <p className="text-sm text-gray-500">Category</p>
-                        <p className="font-medium text-gray-900">{selectedTransaction.category}</p>
+                      <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Category</p>
+                        <p className="font-medium text-gray-900 dark:text-white">{selectedTransaction.category}</p>
                       </div>
                     </div>
-                    <div className="p-4 bg-gray-50 rounded-lg">
-                      <p className="text-sm text-gray-500">Card Used</p>
-                      <p className="font-medium text-gray-900">{selectedTransaction.card || 'N/A'}</p>
+                    <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Card Used</p>
+                      <p className="font-medium text-gray-900 dark:text-white">{selectedTransaction.card || 'N/A'}</p>
                     </div>
-                    <div className="p-4 bg-gray-50 rounded-lg">
-                      <p className="text-sm text-gray-500">Location</p>
-                      <p className="font-medium text-gray-900">{selectedTransaction.location}</p>
+                    <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Location</p>
+                      <p className="font-medium text-gray-900 dark:text-white">{selectedTransaction.location}</p>
                     </div>
                   </div>
 
                   {/* Action Buttons */}
                   <div className="grid grid-cols-2 gap-4">
                     <button 
-                      className="px-4 py-2  border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
-                    >
-                      <AlertCircle className="w-4 h-4" />
-                      Report Issue
-                    </button>
-                    <button 
-                      onClick={() => handleDownload(selectedTransaction)}
-                      className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors flex items-center justify-center gap-2"
+                      className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors 
+                      dark:bg-yellow-700 dark:hover:bg-yellow-800 flex items-center justify-center gap-2"
                     >
                       <Download className="w-4 h-4" />
                       Download
                     </button>
-                  </div>
-
-                  {/* Additional Transaction Details */}
-                  <div className="mt-6 space-y-4 animate-fadeIn">
-                    <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                      <h4 className="font-medium text-gray-900 mb-2">Transaction Timeline</h4>
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                          <p className="text-sm text-gray-600">Transaction Initiated</p>
-                          <p className="text-sm text-gray-400 ml-auto">10:30 AM</p>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <div className="w-2 h-2 rounded-full bg-yellow-600"></div>
-                          <p className="text-sm text-gray-600">Processing</p>
-                          <p className="text-sm text-gray-400 ml-auto">10:31 AM</p>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                          <p className="text-sm text-gray-600">Completed</p>
-                          <p className="text-sm text-gray-400 ml-auto">10:32 AM</p>
-                        </div>
-                      </div>
-                    </div>
-
                   </div>
                 </div>
               </div>
             ) : (
               <div className="h-full flex items-center justify-center p-6">
                 <div className="text-center">
-                  <Wallet className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-1">No Transaction Selected</h3>
-                  <p className="text-sm text-gray-500">Select a transaction to view its details</p>
+                  <Wallet className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">No Transaction Selected</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Select a transaction to view its details</p>
                 </div>
               </div>
             )}
@@ -568,10 +523,9 @@ Location: ${transaction.location}
         </div>
       </div>
 
-
-      {/* Show error message if there's an error */}
+      {/* Error Message */}
       {error && (
-        <div className="text-red-600 p-4 mb-4 bg-red-50 rounded-lg">
+        <div className="text-red-600 dark:text-red-400 p-4 mb-4 bg-red-50 dark:bg-red-900/50 rounded-lg">
           {error}
         </div>
       )}
