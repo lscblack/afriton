@@ -70,7 +70,8 @@ const LoginForm = () => {
           {
             headers: {
               'Content-Type': 'application/json'
-            }
+            },
+            withCredentials: true
           }
         );
 
@@ -126,7 +127,8 @@ const LoginForm = () => {
         {
           headers: {
             Authorization: `Bearer ${apiToken}`
-          }
+          },
+          withCredentials: true
         }
       );
 
@@ -157,7 +159,8 @@ const LoginForm = () => {
         {
           headers: {
             Authorization: `Bearer ${apiToken}`
-          }
+          },
+          withCredentials: true
         }
       );
 
@@ -190,7 +193,8 @@ const LoginForm = () => {
         {
           headers: {
             Authorization: `Bearer ${apiToken}`
-          }
+          },
+          withCredentials: true
         }
       );
 
@@ -227,7 +231,8 @@ const LoginForm = () => {
         {
           headers: {
             Authorization: `Bearer ${apiToken}`
-          }
+          },
+          withCredentials: true
         }
       );
 
@@ -261,7 +266,8 @@ const LoginForm = () => {
             headers: {
               'Authorization': `Bearer ${apiToken}`,
               'Content-Type': 'application/json'
-            }
+            },
+            withCredentials: true
           }
         );
 
@@ -288,7 +294,8 @@ const LoginForm = () => {
               headers: {
                 'Authorization': `Bearer ${apiToken}`,
                 'Content-Type': 'application/json'
-              }
+              },
+              withCredentials: true
             }
           );
 

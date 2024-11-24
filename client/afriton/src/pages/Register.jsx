@@ -98,6 +98,9 @@ const Register = () => {
             headers: {
               'Content-Type': 'application/json'
             }
+          },
+          {
+            withCredentials: true
           }
         );
 
@@ -281,7 +284,8 @@ const Register = () => {
         {
           headers: {
             Authorization: `Bearer ${apiToken}`
-          }
+          },
+          withCredentials: true
         }
       );
 
@@ -319,7 +323,8 @@ const Register = () => {
         {
           headers: {
             Authorization: `Bearer ${apiToken}`
-          }
+          },
+          withCredentials: true
         }
       );
 
@@ -367,7 +372,8 @@ const Register = () => {
         {
           headers: {
             Authorization: `Bearer ${apiToken}`
-          }
+          },
+          withCredentials: true
         }
       );
 
