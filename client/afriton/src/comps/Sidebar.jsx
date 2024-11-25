@@ -127,7 +127,7 @@ const Sidebar = ({ sidebarOpen, toggleSidebar, handleLogout}) => {
           'Set withdrawal goals',
           'Manage linked accounts',
         ],
-        viewpanelS: 'agent-wallet',
+        viewpanelS: 'agent-wallets',
       },
       {
         icon: <ClipboardList />,
@@ -138,7 +138,7 @@ const Sidebar = ({ sidebarOpen, toggleSidebar, handleLogout}) => {
           'Export history reports',
           'Track user-specific activity',
         ],
-        viewpanelS: 'transaction-history',
+        viewpanelS: 'agent-transactions',
       },
     ],
     admin: [
@@ -219,17 +219,7 @@ const Sidebar = ({ sidebarOpen, toggleSidebar, handleLogout}) => {
         ],
         viewpanelS: 'agent-overview',
       },
-      {
-        icon: <PieChart />,
-        label: 'Regional Revenue',
-        details: [
-          'Monitor total regional revenue',
-          'Analyze revenue by agent activity',
-          'Export financial summaries',
-          'Compare performance metrics',
-        ],
-        viewpanelS: 'regional-revenue',
-      },
+
       {
         icon: <ClipboardList />,
         label: 'Withdraw Commission',
@@ -241,17 +231,7 @@ const Sidebar = ({ sidebarOpen, toggleSidebar, handleLogout}) => {
         ],
         viewpanelS: 'withdraw-commission',
       },
-      {
-        icon: <ClipboardList />,
-        label: 'Region Management',
-        details: [
-          'Track remaining funds in your region',
-          'Ensure proper fund allocation',
-          'Optimize agent resources',
-          'Resolve regional wallet issues',
-        ],
-        viewpanelS: 'region-management',
-      },
+
       {
         icon: <Users />,
         label: 'User Role Management',
@@ -274,9 +254,9 @@ const Sidebar = ({ sidebarOpen, toggleSidebar, handleLogout}) => {
       {/* Sidebar */}
       <aside
         className={`
-          fixed lg:relative w-[300px] bg-white dark:bg-[#0c0a1f] h-screen top-0 p-4 z-40 max-lg:z-50 transition-transform duration-300
-          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-        `}
+        fixed lg:relative w-[300px] bg-white dark:bg-[#0c0a1f] h-screen top-0 p-4 z-40 max-lg:z-50 transition-transform duration-300
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0
+  `}
       >
         
 

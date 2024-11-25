@@ -682,7 +682,7 @@ async def transfer_money(
     currency: str,
     from_wallet_type: str
 ):
-    """Transfer money to another Afriton user"""
+    """Transfer money between wallets"""
     if isinstance(user, HTTPException):
         raise user
 
@@ -692,43 +692,66 @@ async def transfer_money(
         if not sender:
             raise HTTPException(status_code=404, detail="Sender not found")
 
-        # Get recipient details
-        recipient = db.query(Users).filter(
-            Users.account_id == recipient_account_id,
-            Users.acc_status == True,  # Ensure recipient account is verified
-            Users.is_wallet_active == True  # Ensure recipient wallet is active
-        ).first()
-        if not recipient:
-            raise HTTPException(
-                status_code=404, 
-                detail="Recipient not found or account not activated"
-            )
+        # For agent-wallet transfers, recipient must be the same user
+        if from_wallet_type == "agent-wallet":
+            if sender.account_id != recipient_account_id:
+                raise HTTPException(
+                    status_code=400, 
+                    detail="Agent wallet transfers must be to your own savings wallet"
+                )
+            to_wallet_type = "savings"  # Force transfer to savings wallet
+        else:
+            # For other transfers, verify recipient
+            recipient = db.query(Users).filter(
+                Users.account_id == recipient_account_id,
+                Users.acc_status == True,
+                Users.is_wallet_active == True
+            ).first()
+            if not recipient:
+                raise HTTPException(
+                    status_code=404, 
+                    detail="Recipient not found or account not activated"
+                )
+            to_wallet_type = "savings"  # Default recipient wallet type
 
-        # Convert amount to Afriton
-        try:
-            afriton_amount = convert_to_afriton(amount, currency, db)
-        except HTTPException as e:
-            raise e
-
-        # Get sender's wallet
+        # Get sender's wallet first to check balance
         sender_wallet = db.query(Wallet).filter(
             Wallet.account_id == sender.account_id,
             Wallet.wallet_type == from_wallet_type
         ).first()
+
         if not sender_wallet:
             raise HTTPException(status_code=404, detail="Sender wallet not found")
 
-        # Check sufficient balance
-        if sender_wallet.balance < afriton_amount:
-            raise HTTPException(status_code=400, detail="Insufficient balance")
+        # Convert amount if not in AFT
+        try:
+            if currency.upper() != 'AFT':
+                afriton_amount = convert_to_afriton(amount, currency, db)
+            else:
+                afriton_amount = float(amount)  # Convert to float for comparison
+        except HTTPException as e:
+            raise e
 
-        # Get recipient's savings wallet (default wallet for receiving transfers)
+        # Check sufficient balance before proceeding
+        if sender_wallet.balance < afriton_amount:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Insufficient balance. Available: {sender_wallet.balance} AFT, Required: {afriton_amount} AFT"
+            )
+
+        # Get or create recipient's savings wallet
         recipient_wallet = db.query(Wallet).filter(
             Wallet.account_id == recipient_account_id,
-            Wallet.wallet_type == "savings"
+            Wallet.wallet_type == to_wallet_type
         ).first()
+        
         if not recipient_wallet:
-            raise HTTPException(status_code=404, detail="Recipient wallet not found")
+            recipient_wallet = Wallet(
+                account_id=recipient_account_id,
+                balance=0,
+                wallet_type=to_wallet_type
+            )
+            db.add(recipient_wallet)
 
         # Perform transfer
         sender_wallet.balance -= afriton_amount
@@ -752,7 +775,7 @@ async def transfer_money(
             original_amount=amount,
             original_currency=currency,
             transaction_type="transfer_received",
-            wallet_type="savings",
+            wallet_type=to_wallet_type,
             done_by=str(user['user_id'])
         )
 
@@ -768,11 +791,11 @@ async def transfer_money(
             <p>Your transfer has been completed successfully:</p>
             <ul>
                 <li>Amount Sent: {amount} {currency}</li>
-                <li>Converted Amount: {afriton_amount} Afriton</li>
-                <li>Recipient: {recipient.fname} {recipient.lname}</li>
+                <li>Converted Amount: {afriton_amount} AFT</li>
                 <li>From Wallet: {from_wallet_type}</li>
+                <li>To Wallet: {to_wallet_type}</li>
             </ul>
-            <p>Your new balance is: {sender_wallet.balance} Afriton</p>
+            <p>Your new balance is: {sender_wallet.balance} AFT</p>
             """
             send_new_email(
                 sender.email,
@@ -780,23 +803,25 @@ async def transfer_money(
                 custom_email(sender.fname, "Transfer Sent", sender_body)
             )
 
-            # To recipient
-            recipient_body = f"""
-            <p>Hi {recipient.fname},</p>
-            <p>You have received a transfer:</p>
-            <ul>
-                <li>Amount: {amount} {currency}</li>
-                <li>Converted Amount: {afriton_amount} Afriton</li>
-                <li>From: {sender.fname} {sender.lname}</li>
-                <li>To Wallet: savings</li>
-            </ul>
-            <p>Your new balance is: {recipient_wallet.balance} Afriton</p>
-            """
-            send_new_email(
-                recipient.email,
-                "Transfer Received",
-                custom_email(recipient.fname, "Transfer Received", recipient_body)
-            )
+            # To recipient (if different from sender)
+            if sender.account_id != recipient_account_id:
+                recipient = db.query(Users).filter(Users.account_id == recipient_account_id).first()
+                recipient_body = f"""
+                <p>Hi {recipient.fname},</p>
+                <p>You have received a transfer:</p>
+                <ul>
+                    <li>Amount: {amount} {currency}</li>
+                    <li>Converted Amount: {afriton_amount} AFT</li>
+                    <li>From: {sender.fname} {sender.lname}</li>
+                    <li>To Wallet: {to_wallet_type}</li>
+                </ul>
+                <p>Your new balance is: {recipient_wallet.balance} AFT</p>
+                """
+                send_new_email(
+                    recipient.email,
+                    "Transfer Received",
+                    custom_email(recipient.fname, "Transfer Received", recipient_body)
+                )
 
         except Exception as e:
             print(f"Email notification error: {str(e)}")
@@ -807,14 +832,17 @@ async def transfer_money(
                 "amount": amount,
                 "currency": currency,
                 "converted_amount": afriton_amount,
-                "recipient": recipient.fname,
                 "from_wallet": from_wallet_type,
+                "to_wallet": to_wallet_type,
                 "new_balance": sender_wallet.balance
             }
         }
 
     except Exception as e:
         db.rollback()
+        print(f"Transfer error: {str(e)}")  # Add logging
+        if isinstance(e, HTTPException):
+            raise e
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/my-withdrawal-requests")
@@ -1073,61 +1101,89 @@ async def get_last_transaction(
 async def get_all_transactions(
     user: user_dependency,
     db: db_dependency,
-    account_id: str,
-    wallet_type: str = None,  # Make wallet_type optional
-    skip: int = 0,
-    limit: int = 10
+    account_id: Optional[str] = None,
+    wallet_type: Optional[str] = None,
+    include_processed: Optional[bool] = False,
+    page: int = 1,
+    per_page: int = 10,
+    done_by: Optional[str] = None
 ):
-    """Get all transactions for specific wallet or all wallets with pagination"""
+    """Get all transactions with pagination"""
     if isinstance(user, HTTPException):
         raise user
 
-    # Verify user has permission
-    check_user = db.query(Users).filter(Users.id == user['user_id']).first()
-    if not check_user:
-        raise HTTPException(status_code=404, detail="User not found")
+    try:
+        # Verify user has permission
+        check_user = db.query(Users).filter(Users.id == user['user_id']).first()
+        if not check_user:
+            raise HTTPException(status_code=404, detail="User not found")
 
-    # Only allow users to view their own transactions unless they're admin/manager
-    if check_user.account_id != account_id and check_user.user_type not in ["admin", "manager"]:
-        raise HTTPException(status_code=403, detail="Not authorized to view these transactions")
+        # Base query
+        base_query = db.query(Transaction_history)
 
-    # Base query
-    query = db.query(Transaction_history).filter(
-        Transaction_history.account_id == account_id
-    )
+        # Add filters based on parameters
+        if account_id:
+            base_query = base_query.filter(Transaction_history.account_id == account_id)
+        
+        if wallet_type:
+            base_query = base_query.filter(Transaction_history.wallet_type == wallet_type)
+            
+        if done_by:
+            base_query = base_query.filter(Transaction_history.done_by == done_by)
+        elif include_processed:
+            # Include transactions processed by this user
+            base_query = base_query.filter(
+                Transaction_history.done_by == str(user['user_id'])
+            )
 
-    # Add wallet type filter if specified
-    if wallet_type:
-        query = query.filter(Transaction_history.wallet_type == wallet_type)
+        # Calculate pagination
+        total_items = base_query.count()
+        total_pages = (total_items + per_page - 1) // per_page
+        skip = (page - 1) * per_page
 
-    # Get total count for pagination
-    total_count = query.count()
+        # Get paginated transactions
+        transactions = base_query.order_by(
+            Transaction_history.created_at.desc()
+        ).offset(skip).limit(per_page).all()
 
-    # Get transactions with pagination
-    transactions = query.order_by(
-        Transaction_history.created_at.desc()
-    ).offset(skip).limit(limit).all()
+        # Format the response
+        transaction_list = []
+        for tx in transactions:
+            # Get user details for the transaction
+            tx_user = db.query(Users).filter(Users.account_id == tx.account_id).first()
+            tx_agent = db.query(Users).filter(Users.id == int(tx.done_by)).first() if tx.done_by else None
 
-    # Format the response
-    transaction_list = [{
-        "id": tx.id,
-        "amount": tx.amount,
-        "original_amount": tx.original_amount,
-        "original_currency": tx.original_currency,
-        "transaction_type": tx.transaction_type,
-        "wallet_type": tx.wallet_type,
-        "created_at": tx.created_at,
-        "status": tx.status,
-        "done_by": tx.done_by
-    } for tx in transactions]
+            transaction_list.append({
+                "id": tx.id,
+                "amount": tx.amount,
+                "original_amount": tx.original_amount,
+                "original_currency": tx.original_currency,
+                "transaction_type": tx.transaction_type,
+                "wallet_type": tx.wallet_type,
+                "created_at": tx.created_at,
+                "status": tx.status,
+                "done_by": tx.done_by,
+                "user_name": f"{tx_user.fname} {tx_user.lname}" if tx_user else "Unknown",
+                "agent_name": f"{tx_agent.fname} {tx_agent.lname}" if tx_agent else None,
+                "is_processed_transaction": tx.done_by == str(user['user_id']),
+                "account_id": tx.account_id
+            })
 
-    return {
-        "message": "Transactions retrieved successfully",
-        "transactions": transaction_list,
-        "total": total_count,
-        "skip": skip,
-        "limit": limit,
-        "wallet_type": wallet_type or "all"
-    }
+        return {
+            "message": "Transactions retrieved successfully",
+            "transactions": transaction_list,
+            "pagination": {
+                "total_items": total_items,
+                "total_pages": total_pages,
+                "current_page": page,
+                "per_page": per_page,
+                "has_next": page < total_pages,
+                "has_prev": page > 1
+            }
+        }
+
+    except Exception as e:
+        print(f"Error fetching transactions: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 

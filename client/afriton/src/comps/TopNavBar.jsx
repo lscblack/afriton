@@ -5,13 +5,13 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import { useApp } from '../context/AppContext';
 
-const TopNavBar = ({ onSidebarToggle }) => {
+const TopNavBar = ({ sidebarOpen, toggleSidebar}) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [showAllNotifications, setShowAllNotifications] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   const [profileOpen, setProfileOpen] = useState(false);
   const [userData, setUserData] = useState(null);
 
@@ -154,20 +154,15 @@ const TopNavBar = ({ onSidebarToggle }) => {
   const [selectedNotification, setSelectedNotification] = useState(null);
 
   const handleLogout = () => {
-    // localStorage.clear();
-    localStorage.removeItem('token');
+    // Clear all authentication-related items from localStorage
     localStorage.removeItem('userInfo');
-    localStorage.removeItem('viewUser');
-    localStorage.removeItem('viewPanel');
+    localStorage.removeItem('token');
+    localStorage.removeItem('ViewUser');
+    localStorage.removeItem('ViewPanel');
     window.location.href = '/login';
   };
 
-  const toggleSidebar = () => {
-    setIsSidebarOpen(!isSidebarOpen);
-    if (onSidebarToggle) {
-      onSidebarToggle(!isSidebarOpen);
-    }
-  };
+
 
   return (
     <nav className="bg-white dark:bg-[#0c0a1f] shadow-sm border-b border-gray-200 dark:border-gray-700">
@@ -284,7 +279,7 @@ const TopNavBar = ({ onSidebarToggle }) => {
                       <div 
                         className="text-sm text-yellow-600 font-bold text-center mt-2 cursor-pointer hover:text-yellow-700"
                         onClick={() => {
-                          setViewUser(prev => prev === "citizen" ? userData?.user_type : "citizen");
+                          setViewUser(viewUser === "citizen" ? userData?.user_type : "citizen");
                           setProfileOpen(false);
                           setViewPanel("dashboard");
                         }}

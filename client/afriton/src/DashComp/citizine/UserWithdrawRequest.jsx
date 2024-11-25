@@ -8,7 +8,8 @@ import {
   Download,
   CheckCircle,
   XCircle,
-  Loader2
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
@@ -31,6 +32,7 @@ const UserWithdrawRequest = () => {
     reject: false,
     download: false
   });
+  const [error, setError] = useState(null);
 
   const token = localStorage.getItem('token');
 
@@ -49,7 +51,7 @@ const UserWithdrawRequest = () => {
       );
       setRequests(response.data.requests);
     } catch (error) {
-      toast.error('Failed to fetch withdrawal requests');
+      setError('Failed to fetch withdrawal requests');
       console.error(error);
     } finally {
       setIsLoading(false);
@@ -65,7 +67,7 @@ const UserWithdrawRequest = () => {
     const actionKey = action.toLowerCase();
     try {
       setLoadingStates(prev => ({ ...prev, [actionKey]: true }));
-      await axios.post(
+      const response = await axios.post(
         `${import.meta.env.VITE_API_URL}/wallet/respond-withdrawal-request/${requestId}`,
         null,
         {
@@ -73,11 +75,43 @@ const UserWithdrawRequest = () => {
           params: { action }
         }
       );
+
       toast.success(`Request ${actionKey}ed successfully`);
       fetchRequests();
       setIsDetailsPanelOpen(false);
     } catch (error) {
-      toast.error(error.response?.data?.detail || `Failed to ${actionKey} request`);
+      let errorMessage = 'An error occurred';
+      if (error.response) {
+        errorMessage = error.response.data?.detail || 
+                      `Failed to ${actionKey} request (${error.response.status})`;
+        
+        if (error.response.status === 400) {
+          errorMessage = error.response.data?.detail || 'Invalid request data';
+        } else if (error.response.status === 403) {
+          errorMessage = 'You do not have permission to perform this action';
+        } else if (error.response.status === 404) {
+          errorMessage = 'Request not found or already processed';
+        }
+      } else if (error.request) {
+        errorMessage = 'No response from server. Please check your connection.';
+      }
+      
+      toast.error(errorMessage, {
+        position: "top-right",
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+      });
+
+      console.error('Withdrawal request error:', {
+        error: error,
+        requestId: requestId,
+        action: action,
+        errorDetails: error.response?.data
+      });
     } finally {
       setLoadingStates(prev => ({ ...prev, [actionKey]: false }));
     }
@@ -86,16 +120,19 @@ const UserWithdrawRequest = () => {
   const handleDownload = async (request) => {
     try {
       setLoadingStates(prev => ({ ...prev, download: true }));
+      
       const content = `
 Withdrawal Request Details
 -------------------------
-ID: ${request.id}
-Amount: ${request.amount} ${request.withdrawal_currency}
+Request ID: ${request.id}
+Amount: ${request.amount} AFT
+Withdrawal Amount: ${request.withdrawal_amount} ${request.withdrawal_currency}
 Status: ${request.status}
 Created: ${new Date(request.created_at).toLocaleString()}
+Processed: ${request.processed_at ? new Date(request.processed_at).toLocaleString() : 'Not processed'}
 Wallet Type: ${request.wallet_type}
-Charges: ${request.charges}
-Total Amount: ${request.total_amount}
+Service Fee: ${request.charges} AFT
+Total Amount: ${request.total_amount} AFT
       `.trim();
 
       const blob = new Blob([content], { type: 'text/plain' });
@@ -107,8 +144,11 @@ Total Amount: ${request.total_amount}
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+      
+      toast.success('Request details downloaded successfully');
     } catch (error) {
       toast.error('Failed to download request details');
+      console.error('Download error:', error);
     } finally {
       setLoadingStates(prev => ({ ...prev, download: false }));
     }
@@ -147,6 +187,31 @@ Total Amount: ${request.total_amount}
       </span>
     );
   };
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-6 max-w-md w-full text-center">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-red-700 dark:text-red-400 mb-2">
+            Error Loading Requests
+          </h3>
+          <p className="text-red-600 dark:text-red-300">
+            {error}
+          </p>
+          <button
+            onClick={() => {
+              setError(null);
+              fetchRequests();
+            }}
+            className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white dark:bg-[#0c0a1f] rounded-xl p-6">

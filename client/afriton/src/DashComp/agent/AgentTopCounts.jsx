@@ -34,7 +34,7 @@ const CircularProgress = ({ percentage, total, label, icon, color }) => {
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <div className="text-4xl font-bold mb-1 dark:text-white">{percentage}%</div>
+            <div className="text-4xl font-bold mb-1 dark:text-white">{percentage.toFixed(2)}%</div>
             <div className="text-sm text-gray-600 dark:text-gray-300">{total}</div>
           </div>
         </div>
