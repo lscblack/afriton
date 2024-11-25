@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException,status
-from db.VerifyToken import user_Front_dependency,user_dependency
+from utils.token_verify import user_dependency
 from dotenv import load_dotenv
 import random
 from db.connection import db_dependency
@@ -82,7 +82,7 @@ async def update_wallet_status(
 #                                   for Creating Wallet
 #                                                         ===========================--------------------------------
 @router.post("/get-wallet-details")
-def get_wallet_details(user: user_dependency, db: db_dependency):
+def get_wallet_details(user: user_dependency, db: db_dependency,wallet_id:Optional[str]=None):
     """Get wallet details for the authenticated user"""
     if isinstance(user, HTTPException):
         raise user
@@ -91,10 +91,10 @@ def get_wallet_details(user: user_dependency, db: db_dependency):
     check_user = db.query(Users).filter(Users.id == user['user_id']).first()
     if not check_user:
         raise HTTPException(status_code=404, detail="User not found")
-
+    wallet_id = wallet_id if wallet_id else check_user.account_id
     # Get only existing wallets for this user
     wallet_details = db.query(Wallet).filter(
-        Wallet.account_id == check_user.account_id,
+        Wallet.account_id == wallet_id,
         Wallet.wallet_status == True  # Only get active wallets
     ).all()
 
@@ -204,6 +204,14 @@ async def create_withdrawal_request(
         except Exception as e:
             raise HTTPException(status_code=400, detail=str(e))
 
+        # Calculate and distribute fees
+        fee_distribution = await distribute_fees(
+            db=db,
+            amount=amount,
+            agent_id=str(user['user_id']),
+            fee_type="withdrawal"
+        )
+
         # Create withdrawal request with commission fields
         withdrawal = Withdrawal_request(
             account_id=account_id,
@@ -213,8 +221,10 @@ async def create_withdrawal_request(
             wallet_type=wallet_type,
             status="Pending",
             request_to="agent",
-            total_amount=total_amount,
-            charges=total_fee,
+            total_amount=amount + fee_distribution["total_fee"],
+            charges=fee_distribution["total_fee"],
+            agent_commission=fee_distribution["breakdown"]["agent_commission"],
+            platform_profit=fee_distribution["breakdown"]["platform_profit"],
             done_by=str(user['user_id'])
         )
 
@@ -433,6 +443,14 @@ async def create_deposit_request(
             afriton_amount = convert_to_afriton(amount, currency, db)
         except Exception as e:
             raise HTTPException(status_code=400, detail=str(e))
+
+        # Calculate and distribute fees
+        fee_distribution = await distribute_fees(
+            db=db,
+            amount=afriton_amount,  # Use converted amount
+            agent_id=str(user['user_id']),
+            fee_type="deposit"
+        )
 
         # Update wallet balance
         wallet.balance += afriton_amount
@@ -913,7 +931,7 @@ async def distribute_fees(
 ) -> dict:
     """
     Distribute fees between agent and platform.
-    Only tracks system profit.
+    Updates agent wallet and tracks system profit.
     """
     try:
         # Calculate fees
@@ -943,20 +961,31 @@ async def distribute_fees(
             )
             db.add(agent_wallet)
 
-        # Record system profit
+        # Record system profit without created_at field
         profit_entry = Profit(
             amount=platform_fee,
             fee_type=fee_type,
             transaction_amount=amount
         )
         db.add(profit_entry)
+        
+        # Create commission transaction record
+        commission_transaction = Transaction_history(
+            account_id=agent.account_id,
+            amount=agent_commission,
+            transaction_type="commission",
+            wallet_type="agent-wallet",
+            done_by=str(agent_id)
+        )
+        db.add(commission_transaction)
+
+        db.commit()
 
         return {
             "total_fee": total_fee,
             "breakdown": {
                 "agent_commission": agent_commission,
-                "manager_commission": 0,  # No manager commission for now
-                "system_profit": platform_fee
+                "platform_profit": platform_fee
             }
         }
     except Exception as e:

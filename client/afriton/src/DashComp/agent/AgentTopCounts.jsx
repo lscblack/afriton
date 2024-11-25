@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 import { CreditCard, Send, PieChart as PieChartIcon, Wallet } from 'lucide-react';
 import axios from 'axios';
+import Loading from '../../comps/Loader';
 
 const CircularProgress = ({ percentage, total, label, icon, color }) => {
   const strokeDasharray = `${(percentage * 251.2) / 100} 251.2`;
@@ -107,7 +108,7 @@ const AfritonDashboard = () => {
   }, [token]);
 
   if (isLoading) {
-    return <div>Loading...</div>;
+    return <div><Loading/> </div>;
   }
 
   if (error) {

@@ -56,6 +56,12 @@ const UserProfile = () => {
     const file = event.target.files[0];
     if (!file) return;
 
+    // Validate file size (5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size must be less than 5MB');
+      return;
+    }
+
     try {
       setIsUploading(true);
       const formData = new FormData();
@@ -75,7 +81,7 @@ const UserProfile = () => {
       toast.success('Profile picture updated successfully');
       fetchUserData();
     } catch (error) {
-      toast.error('Failed to update profile picture');
+      toast.error(error.response?.data?.detail || 'Failed to update profile picture');
     } finally {
       setIsUploading(false);
     }
@@ -83,19 +89,29 @@ const UserProfile = () => {
 
   const handleSaveChanges = async () => {
     try {
+      // Send data as query parameters instead of form data
+      const params = new URLSearchParams({
+        fname: editedData.fname || '',
+        mname: editedData.mname || '',
+        lname: editedData.lname || '',
+        phone: editedData.phone || ''
+      });
+
       await axios.post(
-        `${import.meta.env.VITE_API_URL}/auth/update-profile`,
-        editedData,
+        `${import.meta.env.VITE_API_URL}/auth/update-profile?${params.toString()}`,
+        null,  // empty body since we're using query params
         {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { 
+            Authorization: `Bearer ${token}`
+          }
         }
       );
 
       toast.success('Profile updated successfully');
       setIsEditMode(false);
-      fetchUserData();
+      fetchUserData();  // Refresh the data
     } catch (error) {
-      toast.error('Failed to update profile');
+      toast.error(error.response?.data?.detail || 'Failed to update profile');
     }
   };
 
@@ -143,11 +159,11 @@ const UserProfile = () => {
                   </label>
                 </div>
               </div>
-              <div className="mb-4 text-white">
+              <div className="mb-4 pt-10 dark:text-white">
                 <h1 className="text-2xl font-bold">
                   {userData?.fname} {userData?.mname} {userData?.lname}
                 </h1>
-                <p className="text-yellow-100">@{userData?.account_id}</p>
+                <p className="dark:text-yellow-100 text-yellow-600">@{userData?.account_id}</p>
               </div>
             </div>
           </div>

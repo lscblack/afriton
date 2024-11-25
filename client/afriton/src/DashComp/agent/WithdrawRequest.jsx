@@ -33,7 +33,7 @@ const WithdrawRequest = () => {
       try {
         const response = await axios.post(
           `${import.meta.env.VITE_API_URL}/wallet/get-wallet-details`,
-          {},
+          {"wallet_id":formData.account_id},
           {
             headers: { Authorization: `Bearer ${token}` }
           }
@@ -47,10 +47,10 @@ const WithdrawRequest = () => {
       }
     };
 
-    if (formData.account_id.length >= 5) {
+    if (formData.account_id.length == 10) {
       fetchUserWallets();
     }
-  }, [formData.account_id, token]);
+  }, [formData.account_id]);
 
   // Handle real-time conversion
   useEffect(() => {

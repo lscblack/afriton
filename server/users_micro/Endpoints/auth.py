@@ -1,13 +1,14 @@
 from datetime import timedelta, datetime
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, File, UploadFile
 from starlette import status
 from typing import Annotated
 from passlib.context import CryptContext
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from jose import jwt, JWTError
 from db.connection import db_dependency
+from utils.token_verify import user_dependency
 from models import userModels
-from models.userModels import Users, OTP
+from models.userModels import Users, OTP, Wallet
 from sqlalchemy import or_
 import json
 from schemas.schemas import CreateUserRequest, Token, FromData
@@ -19,6 +20,7 @@ from emailsTemps.custom_email_send import custom_email
 from dotenv import load_dotenv
 import os
 import random
+import base64
 
 # Load environment variables from .env file
 load_dotenv()
@@ -453,6 +455,135 @@ async def reset_password(
         return {"message": "Password reset successfully"}
     except HTTPException as http_ex:
         raise http_ex
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/user-profile")
+async def get_user_profile(
+    user: user_dependency,
+    db: db_dependency
+):
+    """Get user profile information"""
+    if isinstance(user, HTTPException):
+        raise user
+
+    try:
+        # Get user details
+        user_data = db.query(Users).filter(Users.id == user['user_id']).first()
+        if not user_data:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Get user's wallets
+        wallets = db.query(Wallet).filter(
+            Wallet.account_id == user_data.account_id
+        ).all()
+
+        # Format wallet data
+        wallet_details = [{
+            "wallet_type": wallet.wallet_type,
+            "balance": float(wallet.balance),
+            "wallet_status": wallet.wallet_status,
+            "created_at": wallet.created_at.isoformat() if wallet.created_at else None
+        } for wallet in wallets]
+
+        # Return formatted user data without location
+        return {
+            "id": user_data.id,
+            "account_id": user_data.account_id,
+            "fname": user_data.fname,
+            "mname": user_data.mname,
+            "lname": user_data.lname,
+            "email": user_data.email,
+            "phone": user_data.phone,
+            "avatar": user_data.avatar,
+            "user_type": user_data.user_type,
+            "acc_status": user_data.acc_status,
+            "is_wallet_active": user_data.is_wallet_active,
+            "created_at": user_data.created_at,
+            "wallets": wallet_details
+        }
+    except Exception as e:
+        print(f"Error in get_user_profile: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Internal server error: {str(e)}"
+        )
+
+@router.post("/update-profile")
+async def update_profile(
+    user: user_dependency,
+    db: db_dependency,
+    fname: str = None,
+    mname: str = None,
+    lname: str = None,
+    phone: str = None
+):
+    """Update user profile information"""
+    if isinstance(user, HTTPException):
+        raise user
+
+    try:
+        # Get user details
+        user_data = db.query(Users).filter(Users.id == user['user_id']).first()
+        if not user_data:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Update fields if provided and not empty
+        if fname and fname.strip():
+            user_data.fname = fname
+        if mname and mname.strip():
+            user_data.mname = mname
+        if lname and lname.strip():
+            user_data.lname = lname
+        if phone and phone.strip():
+            user_data.phone = phone
+
+        db.commit()
+        db.refresh(user_data)  # Refresh the instance
+
+        return {
+            "message": "Profile updated successfully",
+            "user": {
+                "fname": user_data.fname,
+                "mname": user_data.mname,
+                "lname": user_data.lname,
+                "phone": user_data.phone
+            }
+        }
+    except Exception as e:
+        db.rollback()
+        print(f"Error updating profile: {str(e)}")  # Add logging
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/update-avatar")
+async def update_avatar(
+    user: user_dependency,
+    db: db_dependency,
+    avatar: UploadFile = File(...)
+):
+    """Update user's avatar"""
+    if isinstance(user, HTTPException):
+        raise user
+
+    try:
+        # Get user details
+        user_data = db.query(Users).filter(Users.id == user['user_id']).first()
+        if not user_data:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Read and validate image file
+        contents = await avatar.read()
+        if len(contents) > 5 * 1024 * 1024:  # 5MB limit
+            raise HTTPException(status_code=400, detail="File too large")
+
+        # Convert to base64 for storage
+        base64_image = base64.b64encode(contents).decode()
+        user_data.avatar = f"data:{avatar.content_type};base64,{base64_image}"
+
+        db.commit()
+
+        return {"message": "Avatar updated successfully"}
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
