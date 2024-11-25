@@ -1,24 +1,31 @@
-import React from 'react'
+import React from 'react';
 import { useApp } from '../../context/AppContext';
-import UserProfile from '../citizine/UserProfile';
-import { HomePage } from '../agent/HomeAgent';
-import DepositForm from '../agent/DepositForm';
-import WithdrawRequest from '../agent/WithdrawRequest';
-import CommissionOverview from '../agent/CommissionOverview';
-import AgentTransactionReport from '../agent/AgentTransactionReport';
-import AgentWallet from '../agent/AgentWallet';
+import HomePage from '../manager/HomePage';
 
-export const Manager = () => {
-  const { userInfo,viewUser, setViewUser,viewPanel, setViewPanel } = useApp();
+
+
+
+import ManagerTransactionReport from '../manager/ManagerTransactionReport';
+import ManagerCommissionOverview from '../manager/ManagerCommissionOverview';
+import ManagerWallet from '../manager/ManagerWallet';
+import ManagerTopCounts from '../manager/ManagerTopCounts';
+import UserProfile from '../citizine/UserProfile';
+import AgentManagement from '../manager/AgentManagement';
+
+const ManagerController = () => {
+  const { viewPanel } = useApp();
+
   return (
-    <>
-       {viewPanel == "dashboard" && <HomePage/>}
-       {viewPanel == "deposit" && <DepositForm/>}
-       {viewPanel == "withdraw" && <WithdrawRequest/>}
-       {viewPanel == "profile" && <UserProfile />}
-       {viewPanel == "commission" && <CommissionOverview/>}
-       {viewPanel == "agent-transactions" && <AgentTransactionReport/>}
-       {viewPanel == "agent-wallets" && <AgentWallet/>}
-    </>
-  )
-}
+    <main className="flex-1 overflow-y-auto">
+      {viewPanel === "dashboard" && <HomePage />}
+      {viewPanel === "agent-overview" && <ManagerTopCounts />}
+      {viewPanel === "manager-wallet" && <ManagerWallet />}
+      {viewPanel === "manager-transactions" && <ManagerTransactionReport />}
+      {viewPanel === "withdraw-commission" && <ManagerCommissionOverview />}
+      {viewPanel === "profile" && <UserProfile />}
+      {viewPanel === "user-role-management" && <AgentManagement />}
+    </main>
+  );
+};
+
+export default ManagerController;

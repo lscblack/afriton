@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, status
 from utils.token_verify import user_dependency
 from db.connection import db_dependency
-from models.userModels import Users, Transaction_history, Withdrawal_request, Wallet
+from models.userModels import Users, Transaction_history, Withdrawal_request, Wallet, Workers
 from sqlalchemy import func, and_, case
 from datetime import datetime, timedelta
 from typing import Dict, List
@@ -83,14 +83,23 @@ async def get_agent_daily_transactions(
         raise user
 
     try:
-        # Get today's transactions by hour
+        # Verify user is an agent
+        agent = db.query(Users).filter(
+            Users.id == user['user_id'],
+            Users.user_type == "agent"
+        ).first()
+        
+        if not agent:
+            raise HTTPException(status_code=403, detail="Only agents can access this endpoint")
+
+        # Get today's date in UTC
         today = datetime.utcnow().date()
         
         # Initialize hours with zero values
-        hours = {f"{h}:00": {"deposits": 0.0, "withdrawals": 0.0} 
+        hours = {f"{h:02d}:00": {"deposits": 0.0, "withdrawals": 0.0} 
                 for h in range(24)}
 
-        # Get all transactions for today
+        # Get all transactions for today using date comparison
         transactions = db.query(Transaction_history).filter(
             Transaction_history.done_by == str(user['user_id']),
             func.date(Transaction_history.created_at) == today
@@ -98,26 +107,40 @@ async def get_agent_daily_transactions(
 
         # Process transactions
         for tx in transactions:
-            hour = tx.created_at.strftime('%H:00')
-            if tx.transaction_type == 'deposit' and tx.amount > 0:
-                hours[hour]['deposits'] += float(tx.amount)
-            elif tx.transaction_type == 'withdrawal' and tx.amount < 0:
-                hours[hour]['withdrawals'] += abs(float(tx.amount))
+            try:
+                # Format hour with leading zero
+                hour = tx.created_at.strftime('%H:00')
+                
+                # Handle transaction types
+                if tx.transaction_type == 'deposit':
+                    amount = float(tx.amount) if tx.amount else 0.0
+                    if amount > 0:
+                        hours[hour]['deposits'] += amount
+                elif tx.transaction_type == 'withdrawal':
+                    amount = float(tx.amount) if tx.amount else 0.0
+                    if amount < 0:
+                        hours[hour]['withdrawals'] += abs(amount)
+            except (ValueError, AttributeError) as e:
+                print(f"Error processing transaction {tx.id}: {str(e)}")
+                continue
 
-        # Convert to list format
+        # Convert to list format and ensure proper number formatting
         hourly_data = [
             {
                 "hour": hour,
-                "deposits": data["deposits"],
-                "withdrawals": data["withdrawals"]
+                "deposits": round(data["deposits"], 2),
+                "withdrawals": round(data["withdrawals"], 2)
             }
-            for hour, data in hours.items()
+            for hour, data in sorted(hours.items())  # Sort by hour
         ]
 
         return {"daily_transactions": hourly_data}
     except Exception as e:
-        print(f"Error in daily transactions: {str(e)}")  # Add logging
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"Error in daily transactions: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail="An error occurred while fetching daily transactions"
+        )
 
 @router.get("/agent-weekly-activity")
 async def get_agent_weekly_activity(
@@ -231,3 +254,281 @@ async def get_agent_commission_breakdown(
     ]
 
     return {"commission_breakdown": commission_breakdown}
+
+@router.get("/manager-transactions")
+async def get_manager_transactions(
+    user: user_dependency,
+    db: db_dependency,
+    page: int = 1,
+    per_page: int = 10
+):
+    """Get all transactions for a manager's network"""
+    if isinstance(user, HTTPException):
+        raise user
+
+    try:
+        # Verify user is a manager
+        manager = db.query(Users).filter(Users.id == user['user_id']).first()
+        if not manager or manager.user_type != 'manager':
+            raise HTTPException(status_code=403, detail="Access denied")
+
+        # Get all agents under this manager
+        agents = db.query(Users).filter(
+            Users.step_account_id == manager.id,
+            Users.user_type == 'agent'
+        ).all()
+        agent_ids = [agent.id for agent in agents]
+
+        # Get all transactions from these agents
+        base_query = db.query(Transaction_history).filter(
+            Transaction_history.done_by.in_([str(id) for id in agent_ids])
+        )
+
+        # Calculate pagination
+        total_items = base_query.count()
+        total_pages = (total_items + per_page - 1) // per_page
+        skip = (page - 1) * per_page
+
+        transactions = base_query.order_by(
+            Transaction_history.created_at.desc()
+        ).offset(skip).limit(per_page).all()
+
+        # Format transactions
+        transaction_list = []
+        for tx in transactions:
+            agent = db.query(Users).filter(Users.id == int(tx.done_by)).first()
+            transaction_list.append({
+                "id": tx.id,
+                "amount": tx.amount,
+                "transaction_type": tx.transaction_type,
+                "wallet_type": tx.wallet_type,
+                "created_at": tx.created_at,
+                "status": tx.status,
+                "agent_name": f"{agent.fname} {agent.lname}" if agent else "Unknown",
+                "agent_id": agent.account_id if agent else None
+            })
+
+        return {
+            "transactions": transaction_list,
+            "pagination": {
+                "total_items": total_items,
+                "total_pages": total_pages,
+                "current_page": page,
+                "per_page": per_page
+            }
+        }
+
+    except Exception as e:
+        print(f"Error fetching manager transactions: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/manager-commission-stats")
+async def get_manager_commission_stats(
+    user: user_dependency,
+    db: db_dependency
+):
+    """Get commission statistics for a manager's network"""
+    if isinstance(user, HTTPException):
+        raise user
+
+    try:
+        # Verify user is a manager
+        manager = db.query(Users).filter(Users.id == user['user_id']).first()
+        if not manager or manager.user_type != 'manager':
+            raise HTTPException(status_code=403, detail="Access denied")
+
+        # Get manager's wallet
+        manager_wallet = db.query(Wallet).filter(
+            Wallet.account_id == manager.account_id,
+            Wallet.wallet_type == 'manager-wallet'
+        ).first()
+
+        # Get all agents under this manager
+        agents = db.query(Users).filter(
+            Users.step_account_id == manager.id,
+            Users.user_type == 'agent'
+        ).all()
+
+        # Calculate commission statistics
+        total_commission = manager_wallet.balance if manager_wallet else 0
+        monthly_commission = 0
+        agent_commissions = []
+
+        for agent in agents:
+            agent_wallet = db.query(Wallet).filter(
+                Wallet.account_id == agent.account_id,
+                Wallet.wallet_type == 'agent-wallet'
+            ).first()
+
+            if agent_wallet:
+                agent_commissions.append({
+                    "agent_name": f"{agent.fname} {agent.lname}",
+                    "agent_id": agent.account_id,
+                    "commission": agent_wallet.balance,
+                    "transaction_count": db.query(Transaction_history).filter(
+                        Transaction_history.done_by == str(agent.id)
+                    ).count()
+                })
+
+        # Get monthly trend
+        current_month = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        monthly_transactions = db.query(Transaction_history).filter(
+            Transaction_history.transaction_type == 'commission',
+            Transaction_history.created_at >= current_month
+        ).all()
+
+        for tx in monthly_transactions:
+            if tx.amount > 0:
+                monthly_commission += tx.amount
+
+        return {
+            "total_commission": total_commission,
+            "monthly_commission": monthly_commission,
+            "agent_commissions": agent_commissions,
+            "total_agents": len(agents),
+            "active_agents": len([a for a in agent_commissions if a["transaction_count"] > 0])
+        }
+
+    except Exception as e:
+        print(f"Error fetching manager commission stats: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/manager-agents")
+async def get_manager_agents(
+    user: user_dependency,
+    db: db_dependency
+):
+    """Get all agents under a manager"""
+    if isinstance(user, HTTPException):
+        raise user
+
+    try:
+        # Verify user is a manager
+        manager = db.query(Users).filter(Users.id == user['user_id']).first()
+        if not manager or manager.user_type != 'manager':
+            raise HTTPException(status_code=403, detail="Access denied")
+
+        # Get all agents under this manager
+        agents = db.query(Workers).filter(
+            Workers.managed_by == manager.id,
+            Workers.worker_type == 'agent'
+        ).all()
+
+        # Format agent data
+        agent_list = []
+        for agent in agents:
+            user = db.query(Users).filter(Users.id == agent.user_id).first()
+            if user:
+                agent_list.append({
+                    "id": agent.id,
+                    "name": f"{user.fname} {user.lname}",
+                    "email": user.email,
+                    "location": agent.location,
+                    "allowed_balance": agent.allowed_balance,
+                    "available_balance": agent.available_balance,
+                    "status": user.acc_status
+                })
+
+        return {
+            "agents": agent_list
+        }
+
+    except Exception as e:
+        print(f"Error fetching manager agents: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/promote-to-agent")
+async def promote_to_agent(
+    user: user_dependency,
+    db: db_dependency,
+    email: str,
+    location: str,
+    allowed_balance: float
+):
+    """Promote a user to agent"""
+    if isinstance(user, HTTPException):
+        raise user
+
+    try:
+        # Verify user is a manager
+        manager = db.query(Users).filter(Users.id == user['user_id']).first()
+        if not manager or manager.user_type != 'manager':
+            raise HTTPException(status_code=403, detail="Access denied")
+
+        # Find user to promote
+        promote_user = db.query(Users).filter(Users.email == email).first()
+        if not promote_user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        if promote_user.user_type != 'citizen':
+            raise HTTPException(status_code=400, detail="User is already an agent or manager")
+
+        # Create worker record
+        worker = Workers(
+            user_id=promote_user.id,
+            allowed_balance=allowed_balance,
+            available_balance=0,
+            location=location,
+            worker_type='agent',
+            managed_by=manager.id
+        )
+        db.add(worker)
+
+        # Update user type
+        promote_user.user_type = 'agent'
+        
+        db.commit()
+
+        return {"message": "User promoted to agent successfully"}
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        db.rollback()
+        print(f"Error promoting user to agent: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.put("/update-agent/{agent_id}")
+async def update_agent(
+    user: user_dependency,
+    db: db_dependency,
+    agent_id: int,
+    updates: dict
+):
+    """Update agent details"""
+    if isinstance(user, HTTPException):
+        raise user
+
+    try:
+        # Verify user is a manager
+        manager = db.query(Users).filter(Users.id == user['user_id']).first()
+        if not manager or manager.user_type != 'manager':
+            raise HTTPException(status_code=403, detail="Access denied")
+
+        # Get agent
+        agent = db.query(Workers).filter(
+            Workers.id == agent_id,
+            Workers.managed_by == manager.id
+        ).first()
+        if not agent:
+            raise HTTPException(status_code=404, detail="Agent not found")
+
+        # Update allowed fields
+        if 'location' in updates:
+            agent.location = updates['location']
+        if 'allowed_balance' in updates:
+            agent.allowed_balance = updates['allowed_balance']
+        if 'status' in updates:
+            user = db.query(Users).filter(Users.id == agent.user_id).first()
+            if user:
+                user.acc_status = updates['status']
+
+        db.commit()
+        return {"message": "Agent updated successfully"}
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        db.rollback()
+        print(f"Error updating agent: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))

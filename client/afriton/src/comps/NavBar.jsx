@@ -32,13 +32,13 @@ export const NavBar = ({ setIsMenuOpen, setIsLoginOpen, setIsRegisterOpen, isMen
                         <a href="#about" className="hover:text-yellow-600 transition-colors">About</a>
                         <a href="#contact" className="hover:text-yellow-600 transition-colors">Contact</a>
                         <button
-                            onClick={() => setIsLoginOpen(true)}
+                            onClick={() =>navigate("/login")}
                             className="px-4 py-2 border border-yellow-600 text-yellow-600 rounded-lg hover:bg-yellow-50 transition-colors"
                         >
                             Login
                         </button>
                         <button
-                            onClick={() => setIsRegisterOpen(true)}
+                            onClick={() =>  navigate("/register")}
                             className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors"
                         >
                             Register

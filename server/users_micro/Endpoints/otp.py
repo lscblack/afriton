@@ -10,8 +10,16 @@ from functions.send_mulltiple import send_new_multi_email
 from emailsTemps.custom_email_send import custom_email
 from schemas.emailSchemas import EmailSchema, OtpVerify
 from datetime import datetime,timedelta
+from pydantic import BaseModel
+
 # Load environment variables from .env file
 load_dotenv()
+
+# Add this class for request validation
+class ChangeUserTypeRequest(BaseModel):
+    user_id: int
+    user_type: Literal["manager", "agent"]
+    location: str
 
 router = APIRouter(prefix="/auth", tags=["Send Notifications and OTP"])
 
@@ -195,9 +203,7 @@ async def send_emails_to_users(
 def change_user_type(
     user: user_dependency, 
     db: db_dependency,
-    user_type: Literal["manager", "agent"],
-    user_id: int,
-    location: str
+    request: ChangeUserTypeRequest
 ):
     if isinstance(user, HTTPException):
         raise user
@@ -207,47 +213,57 @@ def change_user_type(
         raise HTTPException(status_code=403, detail="Permission Denied")
 
     # Check if user exists
-    user_to_change = db.query(Users).filter(Users.id == user_id).first()
+    user_to_change = db.query(Users).filter(Users.id == request.user_id).first()
     if not user_to_change:
         raise HTTPException(status_code=404, detail="User not found")
 
+    # Convert location to lowercase for comparison
+    request.location = request.location.lower().strip()
+
     # Manager can only create agents in their location
     if check_user.user_type == "manager":
-        if user_type != "agent":
+        if request.user_type != "agent":
             raise HTTPException(status_code=403, detail="Managers can only create agents")
             
         # Get manager's worker record
         manager_worker = db.query(Workers).filter(Workers.user_id == check_user.id).first()
-        if not manager_worker or manager_worker.location != location:
-            raise HTTPException(status_code=403, detail="Managers can only create agents in their location")
+        if not manager_worker:
+            raise HTTPException(status_code=403, detail="Manager profile not properly configured")
+            
+        # Convert manager's location to lowercase for comparison
+        if manager_worker.location.lower().strip() != request.location:
+            raise HTTPException(
+                status_code=403, 
+                detail=f"You can only create agents in your location: {manager_worker.location}"
+            )
 
     # Set default allowed balance based on worker type
-    allowed_balance = 5000 if user_type == "agent" else 100000
+    allowed_balance = 5000 if request.user_type == "agent" else 100000
 
     # Check if user is already a worker
-    existing_worker = db.query(Workers).filter(Workers.user_id == user_id).first()
+    existing_worker = db.query(Workers).filter(Workers.user_id == request.user_id).first()
     if existing_worker:
         raise HTTPException(status_code=400, detail="User is already a worker")
 
     # Create worker record
     new_worker = Workers(
-        user_id=user_id,
+        user_id=request.user_id,
         allowed_balance=allowed_balance,
         available_balance=allowed_balance,
-        location=location,
-        worker_type=user_type,
-        managed_by=check_user.id if user_type == "agent" else None
+        location=request.location,
+        worker_type=request.user_type,
+        managed_by=check_user.id if request.user_type == "agent" else None
     )
     
     # Update user type and activate wallet
-    user_to_change.user_type = user_type
+    user_to_change.user_type = request.user_type
     user_to_change.is_wallet_active = True  # Set wallet active when changing role
     
     # Create commission wallet for the new agent/manager
     commission_wallet = Wallet(
         account_id=user_to_change.account_id,
         balance=0.0,
-        wallet_type=f"{user_type}-wallet", #agent-wallet or manager-wallet
+        wallet_type=f"{request.user_type}-wallet", #agent-wallet or manager-wallet
         wallet_status=True
     )
     
@@ -275,8 +291,8 @@ def change_user_type(
     sub = "Your Role Has Been Updated"
     body = f"""
     <p>Hi {user_to_change.fname},</p>
-    <p>Your role has been updated to {user_type}.</p>
-    <p>Location: {location}</p>
+    <p>Your role has been updated to {request.user_type}.</p>
+    <p>Location: {request.location}</p>
     <p>Available Balance: {allowed_balance} Afriton</p>
     <p>Two wallets have been created for you:</p>
     <ul>
@@ -291,11 +307,11 @@ def change_user_type(
         return {
             "message": "User type changed and wallets created successfully",
             "details": {
-                "user_type": user_type,
-                "location": location,
+                "user_type": request.user_type,
+                "location": request.location,
                 "allowed_balance": allowed_balance,
                 "wallets": [
-                    {"type": f"{user_type}-wallet", "balance": 0.0},
+                    {"type": f"{request.user_type}-wallet", "balance": 0.0},
                     {"type": "savings", "balance": 0.0}
                 ]
             }
@@ -304,14 +320,52 @@ def change_user_type(
         return {
             "message": "User type changed and wallets created but email notification failed",
             "details": {
-                "user_type": user_type,
-                "location": location,
+                "user_type": request.user_type,
+                "location": request.location,
                 "allowed_balance": allowed_balance,
                 "wallets": [
-                    {"type": f"{user_type}-wallet", "balance": 0.0},
+                    {"type": f"{request.user_type}-wallet", "balance": 0.0},
                     {"type": "savings", "balance": 0.0}
                 ]
             }
         }
+    
+# Add this new endpoint
+@router.get("/search-users")
+async def search_users(
+    db: db_dependency,
+    user: user_dependency,
+    search: str,
+    limit: int = 10
+):
+    if isinstance(user, HTTPException):
+        raise user
+        
+    # Check if requester is manager
+    check_user = db.query(Users).filter(Users.id == user['user_id']).first()
+    if not check_user or check_user.user_type != "manager":
+        raise HTTPException(status_code=403, detail="Permission Denied")
+    
+    # Search users by email with exact and partial matches
+    exact_matches = db.query(Users).filter(
+        (Users.email == search) & 
+        (Users.user_type == "citizen")
+    ).all()
+    
+    partial_matches = db.query(Users).filter(
+        (Users.email.ilike(f"%{search}%")) & 
+        (Users.user_type == "citizen") & 
+        (Users.email != search)  # Exclude exact matches
+    ).limit(limit - len(exact_matches)).all()
+    
+    # Combine results with exact matches first
+    all_matches = exact_matches + partial_matches
+    
+    return [{
+        "id": user.id,
+        "email": user.email,
+        "name": user.fname,
+        "match_type": "exact" if user in exact_matches else "partial"
+    } for user in all_matches]
     
     

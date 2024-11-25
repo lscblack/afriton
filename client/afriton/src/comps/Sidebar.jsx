@@ -231,7 +231,6 @@ const Sidebar = ({ sidebarOpen, toggleSidebar, handleLogout}) => {
         ],
         viewpanelS: 'withdraw-commission',
       },
-
       {
         icon: <Users />,
         label: 'User Role Management',

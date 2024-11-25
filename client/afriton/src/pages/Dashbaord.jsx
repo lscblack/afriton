@@ -8,6 +8,7 @@ import { useApp } from '../context/AppContext';
 import { CitizenController } from '../DashComp/controllers/CitizenController.jsx';
 import { AdminController } from '../DashComp/controllers/AdminController.jsx';
 import { AgentController } from '../DashComp/controllers/AgentController.jsx';
+import ManagerController from '../DashComp/controllers/ManagerController.jsx';
 
 
 
@@ -70,6 +71,7 @@ const Dashboard = () => {
           {viewUser === "citizen" && <CitizenController/>}
           {viewUser === "admin" && <AdminController />}
           {viewUser === "agent" && <AgentController />}
+          {viewUser === "manager" && <ManagerController />}
         </main>
       </div>
     </div>

@@ -959,53 +959,60 @@ async def distribute_fees(
 ) -> dict:
     """
     Distribute fees between agent and platform.
-    Updates agent wallet and tracks system profit.
+    Only withdrawals get commission, deposits only track platform profit.
     """
     try:
         # Calculate fees
         total_fee = amount * 0.05  # 5% total fee
-        agent_commission = amount * 0.03  # 3% agent commission
-        platform_fee = amount * 0.02  # 2% platform fee
-
-        # Get agent details
-        agent = db.query(Users).filter(Users.id == agent_id).first()
-        if not agent:
-            raise HTTPException(status_code=404, detail="Agent not found")
-
-        # Credit agent's commission wallet
-        agent_wallet = db.query(Wallet).filter(
-            Wallet.account_id == agent.account_id,
-            Wallet.wallet_type == "agent-wallet"
-        ).first()
         
-        if agent_wallet:
-            agent_wallet.balance += agent_commission
-        else:
-            # Create commission wallet if it doesn't exist
-            agent_wallet = Wallet(
-                account_id=agent.account_id,
-                balance=agent_commission,
-                wallet_type="agent-wallet"
-            )
-            db.add(agent_wallet)
+        if fee_type == "withdrawal":
+            # Only withdrawals get agent commission
+            agent_commission = amount * 0.03  # 3% agent commission
+            platform_fee = amount * 0.02  # 2% platform fee
+            
+            # Get agent details
+            agent = db.query(Users).filter(Users.id == agent_id).first()
+            if not agent:
+                raise HTTPException(status_code=404, detail="Agent not found")
 
-        # Record system profit without created_at field
+            # Credit agent's commission wallet
+            agent_wallet = db.query(Wallet).filter(
+                Wallet.account_id == agent.account_id,
+                Wallet.wallet_type == "agent-wallet"
+            ).first()
+            
+            if agent_wallet:
+                agent_wallet.balance += agent_commission
+            else:
+                # Create commission wallet if it doesn't exist
+                agent_wallet = Wallet(
+                    account_id=agent.account_id,
+                    balance=agent_commission,
+                    wallet_type="agent-wallet"
+                )
+                db.add(agent_wallet)
+
+            # Create commission transaction record
+            commission_transaction = Transaction_history(
+                account_id=agent.account_id,
+                amount=agent_commission,
+                transaction_type="commission",
+                wallet_type="agent-wallet",
+                done_by=str(agent_id)
+            )
+            db.add(commission_transaction)
+        else:
+            # For deposits, all fee goes to platform
+            agent_commission = 0
+            platform_fee = total_fee
+
+        # Record system profit
         profit_entry = Profit(
             amount=platform_fee,
             fee_type=fee_type,
             transaction_amount=amount
         )
         db.add(profit_entry)
-        
-        # Create commission transaction record
-        commission_transaction = Transaction_history(
-            account_id=agent.account_id,
-            amount=agent_commission,
-            transaction_type="commission",
-            wallet_type="agent-wallet",
-            done_by=str(agent_id)
-        )
-        db.add(commission_transaction)
 
         db.commit()
 

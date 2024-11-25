@@ -97,13 +97,13 @@ const LandingPage = () => {
       <Footer />
 
       {/* Modals */}
-      <Modal isOpen={isLoginOpen} onClose={() => setIsLoginOpen(false)} title="/login">
+      {/* <Modal isOpen={isLoginOpen} onClose={() => setIsLoginOpen(false)} title="/login">
         <Login />
-      </Modal>
-
+      </Modal> */}
+{/* 
       <Modal isOpen={isRegisterOpen} onClose={() => setIsRegisterOpen(false)} title="/register">
         <Register />
-      </Modal>
+      </Modal> */}
     </div>
   );
 };

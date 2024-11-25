@@ -5,8 +5,9 @@ import DepositForm from '../agent/DepositForm';
 import WithdrawRequest from '../agent/WithdrawRequest';
 import UserProfile from '../citizine/UserProfile';
 import CommissionOverview from '../agent/CommissionOverview';
-import AgentWallet from '../agent/AgentWallet';
 import AgentTransactionReport from '../agent/AgentTransactionReport';
+import AgentWallet from '../agent/AgentWallet';
+
 export const AgentController = () => {
   const { userInfo,viewUser, setViewUser,viewPanel } = useApp();
   return (
