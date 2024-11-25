@@ -532,3 +532,99 @@ async def update_agent(
         db.rollback()
         print(f"Error updating agent: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/manager-stats")
+async def get_manager_stats(
+    user: user_dependency,
+    db: db_dependency
+):
+    """Get statistics for manager dashboard"""
+    if isinstance(user, HTTPException):
+        raise user
+
+    try:
+        # Verify user is a manager
+        manager = db.query(Users).filter(Users.id == user['user_id']).first()
+        if not manager or manager.user_type != 'manager':
+            raise HTTPException(status_code=403, detail="Access denied")
+
+        # Get all agents under this manager
+        agents = db.query(Workers).filter(
+            Workers.managed_by == manager.id,
+            Workers.worker_type == 'agent'
+        ).all()
+
+        # Get agent user records to check active status
+        agent_ids = [agent.user_id for agent in agents]
+        agent_users = db.query(Users).filter(Users.id.in_(agent_ids)).all()
+        
+        # Calculate active agents (those who have processed transactions in last 30 days)
+        thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+        active_agents = db.query(Transaction_history.done_by).distinct().filter(
+            Transaction_history.done_by.in_([str(id) for id in agent_ids]),
+            Transaction_history.created_at >= thirty_days_ago
+        ).count()
+
+        # Get manager's commission wallet
+        manager_wallet = db.query(Wallet).filter(
+            Wallet.account_id == manager.account_id,
+            Wallet.wallet_type == 'manager-wallet'
+        ).first()
+
+        # Calculate monthly growth (compare this month's transactions to last month)
+        this_month = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        last_month = (this_month - timedelta(days=1)).replace(day=1)
+        
+        this_month_transactions = db.query(Transaction_history).filter(
+            Transaction_history.done_by.in_([str(id) for id in agent_ids]),
+            Transaction_history.created_at >= this_month
+        ).count()
+        
+        last_month_transactions = db.query(Transaction_history).filter(
+            Transaction_history.done_by.in_([str(id) for id in agent_ids]),
+            Transaction_history.created_at >= last_month,
+            Transaction_history.created_at < this_month
+        ).count()
+
+        # Calculate growth percentage
+        monthly_growth = 0
+        if last_month_transactions > 0:
+            monthly_growth = ((this_month_transactions - last_month_transactions) / last_month_transactions) * 100
+        elif this_month_transactions > 0:
+            monthly_growth = 100
+
+        # Get performance metrics for each agent
+        performance_metrics = []
+        for agent in agents:
+            agent_user = next((u for u in agent_users if u.id == agent.user_id), None)
+            if agent_user:
+                # Get agent's commission wallet
+                agent_wallet = db.query(Wallet).filter(
+                    Wallet.account_id == agent_user.account_id,
+                    Wallet.wallet_type == 'agent-wallet'
+                ).first()
+
+                # Get agent's transaction count
+                transaction_count = db.query(Transaction_history).filter(
+                    Transaction_history.done_by == str(agent.user_id)
+                ).count()
+
+                performance_metrics.append({
+                    "agentName": f"{agent_user.fname} {agent_user.lname}",
+                    "agentId": agent_user.account_id,
+                    "transactions": transaction_count,
+                    "commission": agent_wallet.balance if agent_wallet else 0,
+                    "performance": monthly_growth  # Individual agent performance could be calculated here
+                })
+
+        return {
+            "totalAgents": len(agents),
+            "activeAgents": active_agents,
+            "totalCommission": manager_wallet.balance if manager_wallet else 0,
+            "monthlyGrowth": round(monthly_growth, 2),
+            "performanceMetrics": performance_metrics
+        }
+
+    except Exception as e:
+        print(f"Error fetching manager stats: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
