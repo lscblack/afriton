@@ -58,9 +58,8 @@ const TransactionDashboard = () => {
         throw new Error('Authentication information missing');
       }
 
-      const response = await axios.post(
+      const response = await axios.get(
         `${import.meta.env.VITE_API_URL}/wallet/get-wallet-details`,
-        {},
         {
           headers: {
             'Authorization': `Bearer ${token}`

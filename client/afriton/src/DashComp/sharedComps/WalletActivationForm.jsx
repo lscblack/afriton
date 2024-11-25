@@ -55,12 +55,12 @@ const WalletActivationForm = () => {
     const fetchExistingWallets = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.post(
+        const response = await axios.get(
           `${import.meta.env.VITE_API_URL}/wallet/get-wallet-details`,
-          {},
           {
             headers: {
-              'Authorization': `Bearer ${token}`
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
             },
             withCredentials: true
           }

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException,status
+from fastapi import APIRouter, HTTPException,status, Request
 from utils.token_verify import user_dependency
 from dotenv import load_dotenv
 import random
@@ -82,8 +82,9 @@ async def update_wallet_status(
 # ------------------------================================
 #                                   for Creating Wallet
 #                                                         ===========================--------------------------------
-@router.get("/get-wallet-details")
+@router.api_route("/get-wallet-details", methods=["GET", "POST"])
 def get_wallet_details(
+    request: Request,  # Add request parameter to access method
     user: user_dependency, 
     db: db_dependency,
     wallet_id: Optional[str] = None
