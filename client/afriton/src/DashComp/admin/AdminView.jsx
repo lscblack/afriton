@@ -64,8 +64,8 @@ const AdminView = () => {
 
   return (
     <div className="min-h-screen p-4 sm:p-6 md:p-8">
-      <div className="md:max-w-8xl w-full mx-auto">
-        <div className="bg-white dark:bg-[#0c0a1f] rounded-xl shadow-xl p-6">
+      <div className="max-w-8xl mx-auto">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6">
           {/* Header */}
           <div className="mb-8">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
@@ -146,7 +146,7 @@ const AdminView = () => {
           {/* Charts Section */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             {/* Transaction Volume Chart */}
-            <div className="bg-white dark:bg-[#0c0a1f] rounded-lg p-6 shadow">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">
                 Transaction Distribution
               </h3>
@@ -169,7 +169,7 @@ const AdminView = () => {
             </div>
 
             {/* Location Distribution */}
-            <div className="bg-white dark:bg-[#0c0a1f] rounded-lg p-6 shadow">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">
                 Location Distribution
               </h3>
@@ -197,7 +197,7 @@ const AdminView = () => {
           </div>
 
           {/* Recent Activities */}
-          <div className="bg-white dark:bg-[#0c0a1f] rounded-lg p-6 shadow">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">
               Recent Activities
             </h3>
