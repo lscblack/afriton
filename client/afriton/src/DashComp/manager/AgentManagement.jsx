@@ -162,8 +162,10 @@ const AgentManagement = () => {
         `${import.meta.env.VITE_API_URL}/counts/update-agent/${agentId}`,
         updates,
         {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
+          withCredentials: true
         }
+        
       );
       toast.success('Agent updated successfully');
       fetchAgents();

@@ -79,7 +79,8 @@ const AgentTransactionReport = () => {
               page: pagination.currentPage,
               per_page: pagination.perPage
             },
-            headers: { Authorization: `Bearer ${token}` }
+            headers: { Authorization: `Bearer ${token}` },
+            withCredentials: true
           }
         ),
         axios.get(

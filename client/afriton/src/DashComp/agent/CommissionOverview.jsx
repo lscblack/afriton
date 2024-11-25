@@ -45,7 +45,8 @@ const CommissionOverview = () => {
       const response = await axios.get(
         `${import.meta.env.VITE_API_URL}/wallet/commission-balance`,
         {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
+          withCredentials: true
         }
       );
       setCommissionData(response.data);
@@ -62,7 +63,8 @@ const CommissionOverview = () => {
         `${import.meta.env.VITE_API_URL}/wallet/get-wallet-details`,
         {},
         {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
+          withCredentials: true
         }
       );
       setWallets(response.data.wallet_details);
@@ -95,7 +97,8 @@ const CommissionOverview = () => {
             currency: 'AFT',
             from_wallet_type: 'agent-wallet'
           },
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
+          withCredentials: true
         }
       );
 

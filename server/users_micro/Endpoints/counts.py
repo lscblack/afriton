@@ -1,11 +1,12 @@
 from fastapi import APIRouter, HTTPException, status
 from utils.token_verify import user_dependency
 from db.connection import db_dependency
-from models.userModels import Users, Transaction_history, Withdrawal_request, Wallet, Workers
-from sqlalchemy import func, and_, case
+from models.userModels import Users, Transaction_history, Withdrawal_request, Wallet, Workers, Profit
+from sqlalchemy import func, and_, case, cast, String, Integer, DateTime
 from datetime import datetime, timedelta
 from typing import Dict, List
 from sqlalchemy.orm import Session
+from sqlalchemy.types import DateTime
 
 router = APIRouter(prefix="/counts", tags=["Counts"])
 
@@ -628,3 +629,254 @@ async def get_manager_stats(
     except Exception as e:
         print(f"Error fetching manager stats: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/admin-dashboard-stats")
+async def get_admin_dashboard_stats(
+    user: user_dependency,
+    db: db_dependency
+):
+    """Get comprehensive statistics for admin dashboard"""
+    if isinstance(user, HTTPException):
+        raise user
+
+    try:
+        # Verify user is admin
+        admin = db.query(Users).filter(
+            Users.id == user['user_id'],
+            Users.user_type == "admin"
+        ).first()
+        if not admin:
+            raise HTTPException(status_code=403, detail="Access denied")
+
+        # Get current time references
+        now = datetime.utcnow()
+        today = now.date()
+        this_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        last_month = (this_month - timedelta(days=1)).replace(day=1)
+        thirty_days_ago = now - timedelta(days=30)
+
+        # User Statistics
+        total_users = db.query(Users).count()
+        total_agents = db.query(Users).filter(Users.user_type == "agent").count()
+        total_managers = db.query(Users).filter(Users.user_type == "manager").count()
+        active_users = db.query(Users).filter(Users.acc_status == True).count()
+
+        # Transaction Statistics
+        transactions = db.query(Transaction_history).filter(
+            func.cast(Transaction_history.created_at, DateTime) >= thirty_days_ago
+        ).all()
+
+        total_volume = sum(abs(float(tx.amount)) for tx in transactions if tx.amount is not None)
+        total_deposits = sum(float(tx.amount) for tx in transactions if tx.transaction_type == "deposit" and tx.amount is not None and tx.amount > 0)
+        total_withdrawals = sum(abs(float(tx.amount)) for tx in transactions if tx.transaction_type == "withdrawal" and tx.amount is not None and tx.amount < 0)
+
+        # Commission and Profit Statistics
+        total_commission = db.query(func.coalesce(func.sum(Wallet.balance), 0)).filter(
+            Wallet.wallet_type.in_(["agent-wallet", "manager-wallet"])
+        ).scalar()
+
+        total_profit = db.query(func.coalesce(func.sum(Profit.amount), 0)).scalar()
+
+        # Monthly Growth
+        this_month_transactions = db.query(Transaction_history).filter(
+            func.cast(Transaction_history.created_at, DateTime) >= this_month
+        ).count()
+        
+        last_month_transactions = db.query(Transaction_history).filter(
+            func.cast(Transaction_history.created_at, DateTime) >= last_month,
+            func.cast(Transaction_history.created_at, DateTime) < this_month
+        ).count()
+
+        # User growth - using proper casting
+        new_users = db.query(Users).filter(
+            func.cast(Users.created_at, DateTime) >= thirty_days_ago
+        ).count()
+
+        # Location Statistics with proper date casting
+        location_stats = db.query(
+            Workers.location,
+            func.count(Workers.id).label('agent_count'),
+            func.coalesce(func.sum(Transaction_history.amount), 0).label('volume')
+        ).outerjoin(
+            Transaction_history,
+            Transaction_history.done_by == cast(Workers.user_id, String)
+        ).group_by(Workers.location).all()
+
+        # Recent Activities with proper date casting
+        recent_activities = db.query(
+            Transaction_history,
+            Users.fname,
+            Users.lname,
+            Users.email
+        ).join(
+            Users,
+            Users.id == cast(Transaction_history.done_by, Integer)
+        ).filter(
+            func.cast(Transaction_history.created_at, DateTime) >= thirty_days_ago
+        ).order_by(
+            Transaction_history.created_at.desc()
+        ).limit(10).all()
+
+        return {
+            "overview": {
+                "total_users": total_users,
+                "total_agents": total_agents,
+                "total_managers": total_managers,
+                "active_users": active_users,
+                "total_volume": float(total_volume),
+                "total_deposits": float(total_deposits),
+                "total_withdrawals": float(total_withdrawals),
+                "total_commission": float(total_commission),
+                "total_profit": float(total_profit)
+            },
+            "growth": {
+                "monthly_transaction_growth": (
+                    ((this_month_transactions - last_month_transactions) / last_month_transactions * 100)
+                    if last_month_transactions > 0 else 0
+                ),
+                "user_growth": new_users
+            },
+            "location_stats": [{
+                "location": stat.location,
+                "agent_count": stat.agent_count,
+                "volume": float(stat.volume) if stat.volume else 0
+            } for stat in location_stats],
+            "recent_activities": [{
+                "id": activity.Transaction_history.id,
+                "type": activity.Transaction_history.transaction_type,
+                "amount": float(activity.Transaction_history.amount) if activity.Transaction_history.amount else 0,
+                "created_at": activity.Transaction_history.created_at,
+                "user": f"{activity.fname} {activity.lname}",
+                "email": activity.email
+            } for activity in recent_activities],
+            "daily_stats": {
+                "transactions": db.query(Transaction_history).filter(
+                    func.date(func.cast(Transaction_history.created_at, DateTime)) == today
+                ).count(),
+                "new_users": db.query(Users).filter(
+                    func.date(func.cast(Users.created_at, DateTime)) == today
+                ).count(),
+                "volume": float(db.query(func.coalesce(func.sum(Transaction_history.amount), 0)).filter(
+                    func.date(func.cast(Transaction_history.created_at, DateTime)) == today
+                ).scalar())
+            }
+        }
+
+    except Exception as e:
+        print(f"Error fetching admin stats: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"An error occurred while fetching statistics: {str(e)}"
+        )
+
+@router.get("/admin-commission-stats")
+async def get_admin_commission_stats(
+    user: user_dependency,
+    db: db_dependency
+):
+    """Get commission statistics for admin dashboard"""
+    if isinstance(user, HTTPException):
+        raise user
+
+    try:
+        # Verify user is admin
+        admin = db.query(Users).filter(Users.id == user['user_id']).first()
+        if not admin or admin.user_type != "admin":
+            raise HTTPException(status_code=403, detail="Access denied")
+
+        # Get commission statistics
+        total_commission = db.query(func.coalesce(func.sum(Wallet.balance), 0)).filter(
+            Wallet.wallet_type.in_(["agent-wallet", "manager-wallet"])
+        ).scalar()
+
+        monthly_commission = db.query(
+            func.coalesce(func.sum(Transaction_history.amount), 0)
+        ).filter(
+            Transaction_history.transaction_type == "commission",
+            func.date_trunc('month', func.cast(Transaction_history.created_at, DateTime)) == 
+            func.date_trunc('month', func.current_timestamp())
+        ).scalar()
+
+        # Get agent statistics
+        total_agents = db.query(Users).filter(Users.user_type == "agent").count()
+        
+        # Calculate active agents (those with transactions in last 30 days)
+        thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+        active_agents = db.query(Transaction_history.done_by).distinct().filter(
+            Transaction_history.created_at >= thirty_days_ago
+        ).count()
+
+        # Calculate monthly growth
+        this_month = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        last_month = (this_month - timedelta(days=1)).replace(day=1)
+        
+        this_month_commission = db.query(func.coalesce(func.sum(Transaction_history.amount), 0)).filter(
+            Transaction_history.transaction_type == "commission",
+            Transaction_history.created_at >= this_month
+        ).scalar()
+        
+        last_month_commission = db.query(func.coalesce(func.sum(Transaction_history.amount), 0)).filter(
+            Transaction_history.transaction_type == "commission",
+            Transaction_history.created_at >= last_month,
+            Transaction_history.created_at < this_month
+        ).scalar()
+
+        monthly_growth = (
+            ((this_month_commission - last_month_commission) / last_month_commission * 100)
+            if last_month_commission > 0 else 0
+        )
+
+        # Get commission breakdown
+        commission_breakdown = db.query(
+            Transaction_history.transaction_type,
+            func.coalesce(func.sum(Transaction_history.amount), 0).label('amount')
+        ).filter(
+            Transaction_history.transaction_type == "commission"
+        ).group_by(Transaction_history.transaction_type).all()
+
+        # Get agent commissions
+        agent_commissions = db.query(
+            Users.id,
+            Users.fname,
+            Users.lname,
+            Users.account_id,
+            func.count(Transaction_history.id).label('transaction_count'),
+            func.coalesce(func.sum(Transaction_history.amount), 0).label('commission')
+        ).join(
+            Transaction_history,
+            Transaction_history.done_by == cast(Users.id, String)
+        ).filter(
+            Users.user_type == "agent",
+            Transaction_history.transaction_type == "commission"
+        ).group_by(
+            Users.id,
+            Users.fname,
+            Users.lname,
+            Users.account_id
+        ).all()
+
+        return {
+            "total_commission": float(total_commission),
+            "monthly_commission": float(monthly_commission),
+            "total_agents": total_agents,
+            "active_agents": active_agents,
+            "monthly_growth": round(monthly_growth, 2),
+            "commission_breakdown": [{
+                "type": breakdown.transaction_type,
+                "amount": float(breakdown.amount)
+            } for breakdown in commission_breakdown],
+            "agent_commissions": [{
+                "agent_id": agent.account_id,
+                "agent_name": f"{agent.fname} {agent.lname}",
+                "transaction_count": agent.transaction_count,
+                "commission": float(agent.commission),
+                "performance": monthly_growth  # Individual performance could be calculated here
+            } for agent in agent_commissions]
+        }
+
+    except Exception as e:
+        print(f"Error fetching admin commission stats: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch commission statistics: {str(e)}"
+        )

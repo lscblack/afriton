@@ -38,7 +38,8 @@ const CitizineCount = () => {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
-          }
+          },
+          withCredentials: true
         }
       );
       return response.data?.transaction;
@@ -62,7 +63,8 @@ const CitizineCount = () => {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
-          }
+          },
+          withCredentials: true
         }
       );
       fetchWallets();
@@ -84,7 +86,8 @@ const CitizineCount = () => {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
-          }
+          },
+          withCredentials: true
         }
       );
 

@@ -93,7 +93,8 @@ const ManagerCommissionOverview = () => {
             currency: 'AFT',
             from_wallet_type: 'manager-wallet'
           },
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
+          withCredentials: true
         }
       );
 

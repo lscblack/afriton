@@ -66,7 +66,7 @@ const Dashboard = () => {
         {/* Main Content */}
         {/* ... (rest of the main content remains the same) ... */}
         {/* Main Content */}
-        <main className="flex-1 p-4 lg:p-6 overflow-auto pb-10 z-0">
+        <main className="flex-1 p-4 sm:p-6 md:p-8 overflow-auto pb-10 z-0">
           {/* Stats */}
           {viewUser === "citizen" && <CitizenController/>}
           {viewUser === "admin" && <AdminController />}

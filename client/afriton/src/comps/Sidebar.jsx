@@ -183,19 +183,19 @@ const Sidebar = ({ sidebarOpen, toggleSidebar, handleLogout}) => {
           'Generate financial reports',
           'Analyze overall commission trends',
         ],
-        viewpanelS: 'system-commission',
+        viewpanelS: 'system-commission-overview',
       },
-      {
-        icon: <ClipboardList />,
-        label: 'Role Management',
-        details: [
-          'Change user roles',
-          'Promote users to agent or manager',
-          'Demote or reassign roles',
-          'Ensure compliance with access permissions',
-        ],
-        viewpanelS: 'role-management',
-      },
+      // {
+      //   icon: <ClipboardList />,
+      //   label: 'Role Management',
+      //   details: [
+      //     'Change user roles',
+      //     'Promote users to agent or manager',
+      //     'Demote or reassign roles',
+      //     'Ensure compliance with access permissions',
+      //   ],
+      //   viewpanelS: 'role-management',
+      // },
     ],
     manager: [
       {

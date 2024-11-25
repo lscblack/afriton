@@ -49,7 +49,8 @@ const AgentWallet = () => {
         `${import.meta.env.VITE_API_URL}/wallet/get-wallet-details`,
         {},
         {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
+          withCredentials: true
         }
       );
       
@@ -75,7 +76,8 @@ const AgentWallet = () => {
             account_id: userInfo?.account_id,
             wallet_type: 'agent-wallet'
           },
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
+          withCredentials: true
         }
       );
 

@@ -64,7 +64,8 @@ const TransactionDashboard = () => {
         {
           headers: {
             'Authorization': `Bearer ${token}`
-          }
+          },
+          withCredentials: true
         }
       );
       setUserWallets(response.data.wallet_details);
@@ -112,7 +113,8 @@ const TransactionDashboard = () => {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
-          }
+          },
+          withCredentials: true
         }
       );
 

@@ -14,6 +14,7 @@ from Endpoints.conversionRate import convert_to_afriton, convert_from_afriton
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional
+from sqlalchemy import func
 
 # Load environment variables from .env file
 load_dotenv()
@@ -81,73 +82,119 @@ async def update_wallet_status(
 # ------------------------================================
 #                                   for Creating Wallet
 #                                                         ===========================--------------------------------
-@router.post("/get-wallet-details")
-def get_wallet_details(user: user_dependency, db: db_dependency,wallet_id:Optional[str]=None):
-    """Get wallet details for the authenticated user"""
+@router.get("/get-wallet-details")
+def get_wallet_details(
+    user: user_dependency, 
+    db: db_dependency,
+    wallet_id: Optional[str] = None
+):
+    """Get wallet details for the authenticated user or specific wallet ID"""
     if isinstance(user, HTTPException):
         raise user
 
-    # Get user details
-    check_user = db.query(Users).filter(Users.id == user['user_id']).first()
-    if not check_user:
-        raise HTTPException(status_code=404, detail="User not found")
-    wallet_id = wallet_id if wallet_id else check_user.account_id
-    # Get only existing wallets for this user
-    wallet_details = db.query(Wallet).filter(
-        Wallet.account_id == wallet_id,
-        Wallet.wallet_status == True  # Only get active wallets
-    ).all()
+    try:
+        # Get user details
+        check_user = db.query(Users).filter(Users.id == user['user_id']).first()
+        if not check_user:
+            raise HTTPException(status_code=404, detail="User not found")
 
-    if not wallet_details:
-        return {
-            "message": "No active wallets found",
-            "user_type": check_user.user_type,
-            "wallet_details": []
+        # Use provided wallet_id or user's account_id
+        wallet_id = wallet_id if wallet_id else check_user.account_id
+
+        # Get only existing wallets for this user
+        wallet_details = db.query(Wallet).filter(
+            Wallet.account_id == wallet_id,
+            Wallet.wallet_status == True  # Only get active wallets
+        ).all()
+
+        if not wallet_details:
+            return {
+                "message": "No active wallets found",
+                "user_type": check_user.user_type,
+                "wallet_details": []
+            }
+
+        # Add wallet type descriptions
+        wallet_descriptions = {
+            "savings": "Your primary savings account for daily transactions",
+            "goal": "Set and track your financial goals",
+            "business": "Manage your business finances",
+            "family": "Share and manage family expenses",
+            "emergency": "Keep funds for unexpected expenses",
+            "agent-wallet": "Earn commissions from transactions",
+            "manager-wallet": "Manage agent networks and earn commissions"
         }
 
-    # Add wallet type descriptions
-    wallet_descriptions = {
-        "savings": "Your primary savings account for daily transactions",
-        "goal": "Set and track your financial goals",
-        "business": "Manage your business finances",
-        "family": "Share and manage family expenses",
-        "emergency": "Keep funds for unexpected expenses",
-        "agent-wallet": "Earn commissions from transactions",
-        "manager-wallet": "Manage agent networks and earn commissions"
-    }
+        # Format response with only existing wallets
+        response_wallets = [{
+            "id": wallet.id,
+            "account_id": wallet.account_id,
+            "balance": float(wallet.balance),
+            "wallet_type": wallet.wallet_type,
+            "wallet_status": wallet.wallet_status,
+            "created_at": wallet.created_at,
+            "exists": True,
+            "description": wallet_descriptions.get(wallet.wallet_type, "")
+        } for wallet in wallet_details]
 
-    # Format response with only existing wallets
-    response_wallets = [{
-        "id": wallet.id,
-        "account_id": wallet.account_id,
-        "balance": wallet.balance,
-        "wallet_type": wallet.wallet_type,
-        "wallet_status": wallet.wallet_status,
-        "created_at": wallet.created_at,
-        "exists": True,
-        "description": wallet_descriptions.get(wallet.wallet_type, "")
-    } for wallet in wallet_details]
-
-    return {
-        "message": "Wallet details retrieved successfully",
-        "user_type": check_user.user_type,
-        "wallet_details": response_wallets
-    }
+        return {
+            "message": "Wallet details retrieved successfully",
+            "user_type": check_user.user_type,
+            "wallet_details": response_wallets
+        }
+    except Exception as e:
+        print(f"Error getting wallet details: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get wallet details: {str(e)}"
+        )
 
 #admin can see all wallets of user
 @router.get("/admin-view-wallets")
 async def admin_view_wallets(user: user_dependency, db: db_dependency):
     if isinstance(user, HTTPException):
         raise user
-    #check if user is admin from database
-    check_user = db.query(Users).filter(Users.id == user['user_id'] , Users.user_type == "admin").first()
+    
+    # Check if user is admin
+    check_user = db.query(Users).filter(Users.id == user['user_id'], Users.user_type == "admin").first()
     if not check_user:
         raise HTTPException(status_code=403, detail="User not authorized")
-    #get all wallets
-    wallets = db.query(Wallet).all()
-    if not wallets:
-        raise HTTPException(status_code=404, detail="No wallets found")
-    return {"message": "Wallets retrieved successfully", "wallets": wallets}
+    
+    try:
+        # Get totals for each wallet type
+        wallet_totals = db.query(
+            Wallet.wallet_type,
+            func.count(Wallet.id).label('count'),
+            func.sum(Wallet.balance).label('total')
+        ).group_by(Wallet.wallet_type).all()
+
+        # Format wallet totals
+        wallet_stats = {
+            "savings_total": 0.0,
+            "goal_total": 0.0,
+            "business_total": 0.0,
+            "family_total": 0.0,
+            "emergency_total": 0.0,
+            "agent_total": 0.0,
+            "manager_total": 0.0,
+            "total_balance": 0.0,
+            "wallet_counts": {}
+        }
+
+        for wallet_type, count, total in wallet_totals:
+            key = f"{wallet_type.replace('-wallet', '')}_total"
+            wallet_stats[key] = float(total or 0)
+            wallet_stats["total_balance"] += float(total or 0)
+            wallet_stats["wallet_counts"][wallet_type] = count
+
+        return wallet_stats
+
+    except Exception as e:
+        print(f"Error fetching wallet stats: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch wallet statistics: {str(e)}"
+        )
     
 @router.post("/create-withdrawal-request")
 async def create_withdrawal_request(

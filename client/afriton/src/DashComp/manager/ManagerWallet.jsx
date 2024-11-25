@@ -77,7 +77,8 @@ const ManagerWallet = () => {
             account_id: userInfo?.account_id,
             wallet_type: 'manager-wallet'
           },
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
+          withCredentials: true
         }
       );
 

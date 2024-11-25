@@ -61,7 +61,8 @@ const WalletActivationForm = () => {
           {
             headers: {
               'Authorization': `Bearer ${token}`
-            }
+            },
+            withCredentials: true
           }
         );
         setExistingWallets(response.data.wallet_details.map(w => w.wallet_type));
@@ -97,7 +98,8 @@ const WalletActivationForm = () => {
         {
           headers: {
             'Authorization': `Bearer ${token}`
-          }
+          },
+          withCredentials: true
         }
       );
 

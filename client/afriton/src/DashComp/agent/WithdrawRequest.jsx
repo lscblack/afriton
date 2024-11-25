@@ -35,7 +35,8 @@ const WithdrawRequest = () => {
           `${import.meta.env.VITE_API_URL}/wallet/get-wallet-details`,
           {"wallet_id":formData.account_id},
           {
-            headers: { Authorization: `Bearer ${token}` }
+            headers: { Authorization: `Bearer ${token}` },
+            withCredentials: true
           }
         );
         
@@ -61,7 +62,8 @@ const WithdrawRequest = () => {
         const response = await axios.get(
           `${import.meta.env.VITE_API_URL}/rate/convert/${formData.amount}/afriton/to/${formData.withdrawal_currency}`,
           {
-            headers: { Authorization: `Bearer ${token}` }
+            headers: { Authorization: `Bearer ${token}` },
+            withCredentials: true
           }
         );
         setConversionResult(response.data);
@@ -98,7 +100,8 @@ const WithdrawRequest = () => {
           headers: { 
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json'
-          }
+          },
+          withCredentials: true
         }
       );
 

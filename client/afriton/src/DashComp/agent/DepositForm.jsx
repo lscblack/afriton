@@ -35,7 +35,8 @@ const DepositForm = () => {
           `${import.meta.env.VITE_API_URL}/wallet/get-wallet-details`,
           {},
           {
-            headers: { Authorization: `Bearer ${token}` }
+            headers: { Authorization: `Bearer ${token}` },
+            withCredentials: true
           }
         );
         
@@ -61,7 +62,8 @@ const DepositForm = () => {
         const response = await axios.get(
           `${import.meta.env.VITE_API_URL}/rate/convert/${formData.amount}/${formData.currency}/to/afriton`,
           {
-            headers: { Authorization: `Bearer ${token}` }
+            headers: { Authorization: `Bearer ${token}` },
+            withCredentials: true
           }
         );
         setConversionResult(response.data);
@@ -95,10 +97,11 @@ const DepositForm = () => {
         `${import.meta.env.VITE_API_URL}/wallet/create-deposit-request?${params.toString()}`,
         {},  // empty body
         {
-          headers: { 
+            headers: { 
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json'
-          }
+          },
+          withCredentials: true
         }
       );
 

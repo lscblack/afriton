@@ -11,6 +11,7 @@ from emailsTemps.custom_email_send import custom_email
 from schemas.emailSchemas import EmailSchema, OtpVerify
 from datetime import datetime,timedelta
 from pydantic import BaseModel
+from typing import Optional, List
 
 # Load environment variables from .env file
 load_dotenv()
@@ -20,6 +21,13 @@ class ChangeUserTypeRequest(BaseModel):
     user_id: int
     user_type: Literal["manager", "agent"]
     location: str
+
+# Add this class for email request validation
+class BulkEmailRequest(BaseModel):
+    subject: str
+    message: str
+    user_type: str
+    emails: Optional[List[str]] = None
 
 router = APIRouter(prefix="/auth", tags=["Send Notifications and OTP"])
 
@@ -154,48 +162,172 @@ async def verify_opt(userFront:user_Front_dependency, data: OtpVerify, db: db_de
     return {"detail": "Successfully Verified", "canProceed": True}
 
 @router.get("/api/all/users")
-def get_all_userss(
-    db: db_dependency,
+async def get_all_users(
     user: user_dependency,
-    skip: int = 0,
-    limit: int = 100,
+    db: db_dependency,
+    page: int = 1,
+    limit: int = 10,
+    userType: str = "all",
+    status: str = "all"
 ):
+    """Get all users with pagination and filters"""
     if isinstance(user, HTTPException):
         raise user
-    #check user type from database
-    check_user = db.query(Users).filter(Users.id == user['user_id']).first()
-    if not check_user.user_type == "admin":
+
+    try:
+        # Verify user is admin
+        admin = db.query(Users).filter(Users.id == user['user_id']).first()
+        if not admin or admin.user_type != "admin":
+            raise HTTPException(status_code=403, detail="Only admins can access this endpoint")
+
+        # Base query
+        query = db.query(Users)
+
+        # Apply filters
+        if userType != "all":
+            query = query.filter(Users.user_type == userType)
+        
+        if status != "all":
+            query = query.filter(Users.acc_status == (status == "active"))
+
+        # Calculate total items and pages
+        total_items = query.count()
+        total_pages = (total_items + limit - 1) // limit
+
+        # Apply pagination
+        skip = (page - 1) * limit
+        users = query.offset(skip).limit(limit).all()
+
+        # Format response
+        return {
+            "users": [{
+                "id": user.id,
+                "fname": user.fname,
+                "lname": user.lname,
+                "email": user.email,
+                "user_type": user.user_type,
+                "acc_status": user.acc_status,
+                "created_at": user.created_at,
+                "account_id": user.account_id
+            } for user in users],
+            "total_pages": total_pages,
+            "current_page": page,
+            "total_items": total_items,
+            "has_next": page < total_pages,
+            "has_previous": page > 1
+        }
+
+    except Exception as e:
+        print(f"Error fetching users: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Persmission Denied"
+            status_code=500,
+            detail=f"An error occurred while fetching users: {str(e)}"
         )
-    """Get all All with pagination"""
-    users = db.query(Users).offset(skip).limit(limit).all()
-    return users
 
 
-@router.post("send_emails",description="This Endpoint Will Be used To eamils to all users")
+@router.post("/send-emails")
 async def send_emails_to_users(
     db: db_dependency,
     user: user_dependency,
-    Emails:list[str],
-    subject:str,
-    msg:str,
+    request: BulkEmailRequest
 ):
-        # Example usage
-    Email_to_list = Emails
-    Email_sub = subject
-    Email_msg = msg
+    """Send emails to users based on type or specific email list"""
+    if isinstance(user, HTTPException):
+        raise user
 
-    Email_msg = custom_email("Adroit User","Adroit Updates",Email_msg)
     try:
-        send_new_multi_email(Email_to_list, Email_sub, Email_msg)
-        # Return a 201 status code for successful email sending
-        return {"message": "Emails sent successfully!"}
+        # Verify user is admin
+        admin = db.query(Users).filter(Users.id == user['user_id']).first()
+        if not admin or admin.user_type != "admin":
+            raise HTTPException(status_code=403, detail="Only admins can send bulk emails")
+
+        # Validate request data
+        if not request.subject or not request.message:
+            raise HTTPException(status_code=400, detail="Subject and message are required")
+
+        # Get email list based on user_type if no specific emails provided
+        if not request.emails:
+            query = db.query(Users)
+            if request.user_type != "all":
+                query = query.filter(Users.user_type == request.user_type)
+            users = query.all()
+            emails = [user.email for user in users if user.email]
+        else:
+            emails = [email for email in request.emails if email]
+
+        if not emails:
+            raise HTTPException(status_code=400, detail="No valid recipients found")
+
+        # Create HTML message with proper validation
+        message = str(request.message).strip()
+        subject = str(request.subject).strip()
+
+        if not message or not subject:
+            raise HTTPException(status_code=400, detail="Message and subject cannot be empty")
+
+        # Create HTML message directly as a string
+        html_message = f"""
+        <!DOCTYPE html>
+        <html>
+            <head>
+                <meta charset="utf-8">
+            </head>
+            <body style="font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 20px; background-color: #f4f4f4;">
+                <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 20px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                    <h1 style="color: #333333; font-size: 24px; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #f0f0f0;">
+                        {subject}
+                    </h1>
+                    <div style="color: #666666; padding: 20px 0;">
+                        {message}
+                    </div>
+                    <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid #f0f0f0; font-size: 12px; color: #999999; text-align: center;">
+                        This is an automated message from Afriton. Please do not reply to this email.
+                    </div>
+                </div>
+            </body>
+        </html>
+        """
+
+        # Send emails with validated data
+        try:
+            print(f"Sending email to {len(emails)} recipients")
+            print(f"Subject: {subject}")
+            print(f"Message length: {len(html_message)}")
+
+            # Ensure the message is properly encoded
+            encoded_message = html_message.encode('utf-8').decode('utf-8')
+
+            success = send_new_multi_email(
+                Email_to_list=emails,
+                Email_sub=subject,
+                Email_msg=encoded_message
+            )
+            
+            if not success:
+                raise ValueError("Failed to send emails")
+
+            return {
+                "message": "Emails sent successfully!",
+                "details": {
+                    "recipient_count": len(emails),
+                    "user_type": request.user_type,
+                    "emails_sent": emails
+                }
+            }
+        except Exception as e:
+            print(f"Email sending error: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to send emails: {str(e)}"
+            )
+            
+    except HTTPException as he:
+        raise he
     except Exception as e:
+        print(f"Email sending error: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to send emails: {e}"
+            status_code=400,
+            detail=f"Failed to send emails: {str(e)}"
         )
     
 # change user type if your admin can change to any type or manager can user to agent only

@@ -44,7 +44,8 @@ const HomePage = () => {
       const response = await axios.get(
         `${import.meta.env.VITE_API_URL}/counts/manager-dashboard-metrics`,
         {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
+          withCredentials: true
         }
       );
       setStats(response.data);
