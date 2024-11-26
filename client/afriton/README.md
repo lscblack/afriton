@@ -32,6 +32,26 @@ Your app will be live at `http://localhost:5173`.
 ```bash
 pnpm build
 ```
+### Create .env File in your Frontend and replace this
+VITE_API_URL = "<YOUR_LOCAL_API_URL>"
+
+# Uncomment and replace for production
+### VITE_API_URL = "<YOUR_PRODUCTION_API_URL>"
+
+### Frontend credentials
+VITE_AFRITON_FRONT_USERNAME = "<YOUR_FRONTEND_USERNAME>"
+VITE_AFRITON_FRONT_PASSWORD = "<YOUR_FRONTEND_PASSWORD>"
+
+### Google Auth credentials
+VITE_GOOGLE_AUTH_CLIENT_ID = "<YOUR_GOOGLE_AUTH_CLIENT_ID>"
+VITE_GOOGLE_AUTH_CLIENT_SECRET = "<YOUR_GOOGLE_AUTH_CLIENT_SECRET>"
+
+### Secret keys
+SECRET_KEY = "<YOUR_SECRET_KEY>"
+SECRET_KEY_DATA = "<YOUR_SECRET_KEY_DATA>"
+ALGORITHM_DATA = "<YOUR_ALGORITHM_DATA>"
+ALGORITHM = "<YOUR_ALGORITHM>"```
+```
 
 ## Project Structure
 
