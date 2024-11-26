@@ -30,7 +30,7 @@ pnpm dev
 
 Your app will be live at `http://localhost:5173`.
 
-### 4. Build the Project for Production
+### 4. Build the Project for Production (Optional)
 
 ```bash
 pnpm build
