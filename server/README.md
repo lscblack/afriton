@@ -15,10 +15,10 @@ git clone https://github.com/lscblack/afriton.git
 cd afriton/server/users_micro
 ```
 
-### 2. Switch to the dev branch
+### 2. Switch to the main branch
 
 ```bash
-git checkout dev
+git checkout main
 ```
 
 ### 3. Create a virtual environment
